@@ -22,7 +22,7 @@ export function slugify(text: string) {
   return text
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "") // strip combining diacritics
-    .replace(/[.,!?'"\*\(\)]/g, "") // remove common punctuation
+    .replace(/[.,!?'"“”‘’\*\(\)]/g, "") // remove common punctuation
     .replace(/ß/g, "ss")
     .replace(/æ/g, "ae")
     .replace(/œ/g, "oe")
