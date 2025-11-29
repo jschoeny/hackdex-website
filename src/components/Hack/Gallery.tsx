@@ -18,7 +18,7 @@ export default function Gallery({ images, title }: { images: string[]; title: st
     };
   }, [emblaApi]);
   return (
-    <div className="card p-4">
+    <div className="card-simple p-4">
       <div className="relative aspect-[16/9] w-full overflow-hidden" ref={emblaRef}>
         <div className="flex h-full">
           {images.map((src, idx) => (

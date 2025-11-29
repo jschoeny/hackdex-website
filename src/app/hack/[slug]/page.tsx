@@ -332,7 +332,7 @@ export default async function HackDetail({ params }: HackDetailProps) {
         <div className="space-y-6 lg:min-w-[640px]">
           <Gallery images={images} title={hack.title} />
 
-          <div className="card p-5">
+          <div className="card-simple p-5">
             <h2 className="text-2xl font-semibold tracking-tight">About this hack</h2>
             <div className="prose prose-sm mt-3 max-w-none text-foreground/80">
               <ReactMarkdown

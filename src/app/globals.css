@@ -102,6 +102,11 @@ html { scroll-padding-top: var(--anchor-offset); }
   border: 1px solid var(--border);
   border-radius: 12px;
 }
+.card-simple {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
 
 .frosted {
   background: rgba(255, 255, 255, 0.04);

@@ -224,7 +224,7 @@ export default function HackEditForm({ slug, initial }: HackEditFormProps) {
   return (
     <div className="mt-6 flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_360px]">
       <div className="space-y-6">
-        <div className="card p-5">
+        <div className="card-simple p-5">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold tracking-tight">Content</h2>
               <div className="flex items-center gap-3">
