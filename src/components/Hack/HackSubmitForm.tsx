@@ -20,6 +20,7 @@ import BinFile from "rom-patcher-js/rom-patcher-js/modules/BinFile.js";
 import BPS from "rom-patcher-js/rom-patcher-js/modules/RomPatcher.format.bps.js";
 import { sha1Hex } from "@/utils/hash";
 import { platformAccept, setDraftCovers, getDraftCovers, deleteDraftCovers } from "@/utils/idb";
+import { slugify } from "@/utils/format";
 
 function SortableCoverItem({ id, index, url, filename, onRemove }: { id: string; index: number; url: string; filename: string; onRemove: () => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
@@ -240,18 +241,6 @@ export default function HackSubmitForm({ dummy = false }: HackSubmitFormProps) {
     });
     return () => cancelAnimationFrame(raf1);
   }, [step, isDummy, isHydrating]);
-
-  const slugify = (text: string) =>
-    text
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "") // strip combining diacritics
-      .replace(/ß/g, "ss")
-      .replace(/æ/g, "ae")
-      .replace(/œ/g, "oe")
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
 
   const slug = slugify(title || "");
 

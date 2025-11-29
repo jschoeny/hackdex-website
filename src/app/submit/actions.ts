@@ -5,21 +5,9 @@ import type { TablesInsert } from "@/types/db";
 import { getMinioClient, PATCHES_BUCKET } from "@/utils/minio/server";
 import { sendDiscordMessageEmbed } from "@/utils/discord";
 import { APIEmbed } from "discord-api-types/v10";
+import { slugify } from "@/utils/format";
 
 type HackInsert = TablesInsert<"hacks">;
-
-function slugify(text: string) {
-  return text
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // strip combining diacritics
-    .replace(/ß/g, "ss")
-    .replace(/æ/g, "ae")
-    .replace(/œ/g, "oe")
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
 
 async function ensureUniqueSlug(base: string, supabase: Awaited<ReturnType<typeof createClient>>) {
   let candidate = base;
