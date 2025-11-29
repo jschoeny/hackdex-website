@@ -109,7 +109,7 @@ export default function AccountForm({ user, profile }: { user: User | null, prof
         </div>
 
         <div className="grid gap-2 sm:col-span-2">
-          <label htmlFor="website" className="text-sm text-foreground/80">Website</label>
+          <label htmlFor="website" className="text-sm text-foreground/80">Website <span className="text-foreground/50">(optional)</span></label>
           <input
             id="website"
             type="url"
