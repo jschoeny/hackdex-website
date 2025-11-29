@@ -69,14 +69,17 @@ export type Database = {
       hack_tags: {
         Row: {
           hack_slug: string
+          order: number
           tag_id: number
         }
         Insert: {
           hack_slug: string
+          order?: number
           tag_id: number
         }
         Update: {
           hack_slug?: string
+          order?: number
           tag_id?: number
         }
         Relationships: [
@@ -141,6 +144,7 @@ export type Database = {
           language: string
           original_author: string | null
           patch_url: string
+          published: boolean
           search: unknown
           slug: string
           social_links: Json | null
@@ -164,6 +168,7 @@ export type Database = {
           language: string
           original_author?: string | null
           patch_url: string
+          published?: boolean
           search?: unknown
           slug: string
           social_links?: Json | null
@@ -187,6 +192,7 @@ export type Database = {
           language?: string
           original_author?: string | null
           patch_url?: string
+          published?: boolean
           search?: unknown
           slug?: string
           social_links?: Json | null
