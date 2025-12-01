@@ -1,6 +1,6 @@
 # Hackdex Terms of Service
 
-Version 1.0.1 • Effective: 2025-11-15
+Version 1.0.2 • Effective: 2025-11-30
 
 Canonical URL: https://www.hackdex.app/terms
 
@@ -112,7 +112,7 @@ Hackdex may modify, suspend, or discontinue any part of the Service at any time.
 
 ## 14. Termination
 
-We may suspend or terminate access to the Service (or portions thereof) at any time, with or without notice, including if we believe you have violated these Terms or applicable law. Upon termination, Sections intended to survive (including 4–5 and 8–15) will continue to apply.
+We may suspend or terminate access to the Service (or portions thereof) at any time at our discretion, with or without notice, including if we believe you have violated these Terms or applicable law. Upon termination, Sections intended to survive (including 4–5 and 8–15) will continue to apply.
 
 ## 15. Governing Law; Venue; Dispute Terms
 
