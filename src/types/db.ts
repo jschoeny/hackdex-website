@@ -349,6 +349,7 @@ export type Database = {
       get_my_claim: { Args: { claim: string }; Returns: Json }
       get_my_claims: { Args: never; Returns: Json }
       is_admin: { Args: never; Returns: boolean }
+      is_archiver: { Args: never; Returns: boolean }
       is_claims_admin: { Args: never; Returns: boolean }
       set_claim: {
         Args: { claim: string; uid: string; value: Json }
