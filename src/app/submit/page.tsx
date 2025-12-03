@@ -1,4 +1,4 @@
-import HackForm from "@/components/Hack/HackForm";
+import SubmitPageClient from "@/components/Submit/SubmitPageClient";
 import { createClient } from "@/utils/supabase/server";
 import SubmitAuthOverlay from "@/components/Submit/SubmitAuthOverlay";
 import { Metadata } from "next";
@@ -13,6 +13,7 @@ export default async function SubmitPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   let needsInitialSetup = false;
+  let canCreateArchive = false;
   if (user) {
     const { data: profile } = await supabase
       .from('profiles')
@@ -20,6 +21,10 @@ export default async function SubmitPage() {
       .eq('id', user.id)
       .maybeSingle();
     needsInitialSetup = !profile || profile.username == null;
+
+    // Check if user is archiver (or admin)
+    const { data: isArchiver } = await supabase.rpc("is_archiver");
+    canCreateArchive = !!isArchiver;
   }
 
   return (
@@ -27,7 +32,7 @@ export default async function SubmitPage() {
       <h1 className="text-3xl font-bold tracking-tight">Submit your ROM hack</h1>
       <p className="mt-2 text-[15px] text-foreground/80">Share your hack so others can discover and play it.</p>
       <div className="mt-8">
-        <HackForm mode="create" dummy={!user || needsInitialSetup} />
+        <SubmitPageClient canCreateArchive={canCreateArchive} dummy={!user || needsInitialSetup} />
       </div>
       {!user ? (
         <SubmitAuthOverlay

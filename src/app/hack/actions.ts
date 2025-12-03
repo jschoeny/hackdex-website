@@ -28,12 +28,25 @@ export async function updateHack(args: {
 
   const { data: hack, error: hErr } = await supabase
     .from("hacks")
-    .select("slug, created_by")
+    .select("slug, created_by, current_patch, original_author")
     .eq("slug", args.slug)
     .maybeSingle();
   if (hErr) return { ok: false, error: hErr.message } as const;
   if (!hack) return { ok: false, error: "Hack not found" } as const;
-  if (hack.created_by !== user.id) return { ok: false, error: "Forbidden" } as const;
+
+  // Check if user can edit: either they're the creator, or they're admin/archiver editing an Archive hack
+  const canEditAsCreator = hack.created_by === user.id;
+  const isArchive = hack.original_author != null && hack.current_patch === null;
+  let canEditAsAdminOrArchiver = false;
+  if (isArchive && !canEditAsCreator) {
+    const { data: isAdmin } = await supabase.rpc("is_admin");
+    const { data: isArchiver } = await supabase.rpc("is_archiver");
+    canEditAsAdminOrArchiver = !!isAdmin || !!isArchiver;
+  }
+
+  if (!canEditAsCreator && !canEditAsAdminOrArchiver) {
+    return { ok: false, error: "Forbidden" } as const;
+  }
 
   const updatePayload: TablesInsert<"hacks"> | any = {};
   if (args.title !== undefined) updatePayload.title = args.title;

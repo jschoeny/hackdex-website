@@ -56,7 +56,7 @@ export default function DiscoverBrowser() {
 
       const { data: rows } = await supabase
         .from("hacks")
-        .select("slug,title,summary,description,base_rom,downloads,created_by,updated_at,current_patch")
+        .select("slug,title,summary,description,base_rom,downloads,created_by,updated_at,current_patch,original_author")
         .order(orderBy, { ascending: false });
       const slugs = (rows || []).map((r) => r.slug);
       const { data: coverRows } = await supabase
@@ -111,7 +111,7 @@ export default function DiscoverBrowser() {
             .maybeSingle();
           mappedVersions.set(r.slug, currentPatch?.version || "Pre-release");
         } else {
-          mappedVersions.set(r.slug, "Pre-release");
+          mappedVersions.set(r.slug, r.original_author ? "Archive" : "Pre-release");
         }
       }));
       // Fetch all tags with category to build UI groups

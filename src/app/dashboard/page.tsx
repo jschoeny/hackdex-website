@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { FiExternalLink } from "react-icons/fi";
 import DashboardClient from "@/components/Dashboard/DashboardClient";
+import ArchiverManagement from "@/components/Dashboard/ArchiverManagement";
 import { getDownloadsSeriesAll } from "./actions";
 import type { HackRow } from "@/components/Dashboard/DashboardClient";
 
@@ -51,10 +52,15 @@ export default async function DashboardPage() {
 
   const { username, full_name } = profile;
 
+  // Check if user is admin or archiver for archives link
+  const { data: isArchiver } = await supa.rpc("is_archiver");
+  const canAccessArchives = isAdmin || isArchiver;
+
   const { data: hacks } = await supa
     .from("hacks")
-    .select("slug,title,approved,updated_at,downloads,current_patch,version,created_at")
+    .select("slug,title,approved,updated_at,downloads,current_patch,version,created_at,original_author")
     .eq("created_by", user.id)
+    .is("original_author", null) // Exclude Archive hacks
     .order("updated_at", { ascending: false });
 
   const seriesAll = await getDownloadsSeriesAll({ days: 30 });
@@ -136,6 +142,25 @@ export default async function DashboardPage() {
               })}
             </div>
           </div>
+        </div>
+      )}
+
+      {isAdmin && <ArchiverManagement />}
+
+      {canAccessArchives && (
+        <div className="mt-12">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-xl font-semibold">Archive Management</h2>
+            <Link
+              href="/dashboard/archives"
+              className="inline-flex items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-sm font-medium hover:bg-black/5 dark:hover:bg-white/10"
+            >
+              View all archives
+            </Link>
+          </div>
+          <p className="text-sm text-foreground/60">
+            Archive hacks are informational entries preserved for historical reference. They do not include patch files.
+          </p>
         </div>
       )}
     </div>

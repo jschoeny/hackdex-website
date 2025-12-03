@@ -21,7 +21,7 @@ export default async function Home() {
   // Fetch top 6 approved hacks ordered by downloads
   const { data: popularHacks } = await supabase
     .from("hacks")
-    .select("slug,title,summary,description,base_rom,downloads,created_by,current_patch")
+    .select("slug,title,summary,description,base_rom,downloads,created_by,current_patch,original_author")
     .eq("approved", true)
     .order("downloads", { ascending: false })
     .limit(6);
@@ -87,7 +87,7 @@ export default async function Home() {
             .maybeSingle();
           mappedVersions.set(r.slug, currentPatch?.version || "Pre-release");
         } else {
-          mappedVersions.set(r.slug, "Pre-release");
+          mappedVersions.set(r.slug, r.original_author ? "Archive" : "Pre-release");
         }
       })
     );

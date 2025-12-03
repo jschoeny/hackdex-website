@@ -59,9 +59,13 @@ function SortableCoverItem({ id, index, url, filename, onRemove }: { id: string;
 
 interface HackSubmitFormProps {
   dummy?: boolean;
+  isArchive?: boolean;
 }
 
-export default function HackSubmitForm({ dummy = false }: HackSubmitFormProps) {
+export default function HackSubmitForm({
+  dummy = false,
+  isArchive = false,
+}: HackSubmitFormProps) {
   const MAX_COVERS = 10;
   const { profile, user } = useAuthContext();
   const [isHydrating, setIsHydrating] = React.useState(true);
@@ -96,14 +100,16 @@ export default function HackSubmitForm({ dummy = false }: HackSubmitFormProps) {
   const [pokecommunity, setPokecommunity] = React.useState(() => initialDraftRef.current?.pokecommunity || "");
   const [tags, setTags] = React.useState<string[]>(() => (Array.isArray(initialDraftRef.current?.tags) ? initialDraftRef.current.tags : []));
   const [showMdPreview, setShowMdPreview] = React.useState<boolean>(() => !!initialDraftRef.current?.showMdPreview);
+  const [originalAuthor, setOriginalAuthor] = React.useState(() => initialDraftRef.current?.originalAuthor || "");
   const [patchFile, setPatchFile] = React.useState<File | null>(null);
   const [patchMode, setPatchMode] = React.useState<"bps" | "rom">(() => (initialDraftRef.current?.patchMode === "rom" ? "rom" : "bps"));
   const [genStatus, setGenStatus] = React.useState<"idle" | "generating" | "ready" | "error">("idle");
   const [genError, setGenError] = React.useState<string>("");
   const [submitting, setSubmitting] = React.useState(false);
+  const maxSteps = isArchive ? 3 : 4;
   const [step, setStep] = React.useState<number>(() => {
     const s = initialDraftRef.current?.step;
-    return Number.isInteger(s) ? Math.min(4, Math.max(1, s)) : 1;
+    return Number.isInteger(s) ? Math.min(maxSteps, Math.max(1, s)) : 1;
   });
   const supabase = createClient();
   const isDummy = !!dummy;
@@ -224,11 +230,11 @@ export default function HackSubmitForm({ dummy = false }: HackSubmitFormProps) {
     let target: HTMLInputElement | null = null;
     if (step === 1) {
       target = titleInputRef.current;
-    } else if (step === 2) {
+    } else if (step === 2 && !isArchive) {
       target = versionInputRef.current;
-    } else if (step === 3) {
+    } else if ((step === 2 && isArchive) || (step === 3 && !isArchive)) {
       target = screenshotsInputRef.current;
-    } else if (step === 4) {
+    } else if (step === 4 && !isArchive) {
       target = patchInputRef.current;
     }
     if (!target) return;
@@ -256,7 +262,7 @@ export default function HackSubmitForm({ dummy = false }: HackSubmitFormProps) {
           const data = JSON.parse(raw);
           if (data && typeof data === "object") {
             const isEmpty =
-              !title && !summary && !description && !baseRom && !platform && !version && !language && !boxArt && !discord && !twitter && !pokecommunity && (!tags || tags.length === 0);
+              !title && !summary && !description && !baseRom && !platform && !version && !language && !boxArt && !discord && !twitter && !pokecommunity && (!tags || tags.length === 0) && !originalAuthor;
             if (isEmpty) {
               let applied = false;
               if (typeof data.title === "string") setTitle(data.title);
@@ -283,7 +289,9 @@ export default function HackSubmitForm({ dummy = false }: HackSubmitFormProps) {
               if (typeof data.pokecommunity === "string") applied = applied || !!data.pokecommunity;
               if (Array.isArray(data.tags)) setTags(data.tags.filter((t: any) => typeof t === "string"));
               if (Array.isArray(data.tags)) applied = applied || data.tags.length > 0;
-              if (data.step && Number.isInteger(data.step)) setStep(Math.min(4, Math.max(1, data.step)));
+              if (typeof data.originalAuthor === "string") setOriginalAuthor(data.originalAuthor);
+              if (typeof data.originalAuthor === "string") applied = applied || !!data.originalAuthor;
+              if (data.step && Number.isInteger(data.step)) setStep(Math.min(maxSteps, Math.max(1, data.step)));
               if (typeof data.showMdPreview === "boolean") setShowMdPreview(data.showMdPreview);
               if (data.patchMode === "bps" || data.patchMode === "rom") setPatchMode(data.patchMode);
               if (applied) { hydratedFromDraftRef.current = true; setRestoredDraft(true); }
@@ -305,7 +313,7 @@ export default function HackSubmitForm({ dummy = false }: HackSubmitFormProps) {
     const d = initialDraftRef.current;
     if (!d || typeof d !== "object") return;
     const hasAny = Boolean(
-      d.title || d.summary || d.description || d.baseRom || d.platform || d.version || d.language || d.boxArt || d.discord || d.twitter || d.pokecommunity || (Array.isArray(d.tags) && d.tags.length > 0)
+      d.title || d.summary || d.description || d.baseRom || d.platform || d.version || d.language || d.boxArt || d.discord || d.twitter || d.pokecommunity || (Array.isArray(d.tags) && d.tags.length > 0) || d.originalAuthor
     );
     if (hasAny) { hydratedFromDraftRef.current = true; setRestoredDraft(true); }
   }, [dummy, draftKey]);
@@ -327,6 +335,7 @@ export default function HackSubmitForm({ dummy = false }: HackSubmitFormProps) {
           twitter,
           pokecommunity,
           tags,
+          originalAuthor,
           step,
           showMdPreview,
           patchMode,
@@ -354,6 +363,7 @@ export default function HackSubmitForm({ dummy = false }: HackSubmitFormProps) {
     twitter,
     pokecommunity,
     tags,
+    originalAuthor,
     step,
     showMdPreview,
     patchMode,
@@ -368,10 +378,10 @@ export default function HackSubmitForm({ dummy = false }: HackSubmitFormProps) {
 
   const allSocialValid = [discord, twitter, pokecommunity].every((s) => !s || urlLike(s));
 
-  const step1Valid = !!title.trim() && !!platform && !!baseRom.trim() && !!language.trim();
-  const step2Valid = !!version.trim() && !!summary.trim() && !summaryTooLong && !!description.trim() && tags.length > 0;
+  const step1Valid = !!title.trim() && !!platform && !!baseRom.trim() && !!language.trim() && (isArchive ? !!originalAuthor.trim() : true);
+  const step2Valid = (isArchive ? true : !!version.trim()) && !!summary.trim() && !summaryTooLong && !!description.trim() && tags.length > 0;
   const step3Valid = (newCoverFiles.length > 0) && !overLimit && coverErrors.length === 0 && (!boxArt.trim() || urlLike(boxArt)) && allSocialValid;
-  const isValid = step1Valid && step2Valid && step3Valid && !!patchFile;
+  const isValid = step1Valid && step2Valid && step3Valid && (isArchive ? true : !!patchFile);
 
   const onSubmit = async () => {
     if (!isValid || submitting) return;
@@ -389,26 +399,18 @@ export default function HackSubmitForm({ dummy = false }: HackSubmitFormProps) {
       if (twitter) fd.set('twitter', twitter);
       if (pokecommunity) fd.set('pokecommunity', pokecommunity);
       if (tags.length) fd.set('tags', tags.join(','));
+      if (isArchive) {
+        fd.set('original_author', originalAuthor);
+        fd.set('isArchive', 'true');
+      }
 
       const prepared = await prepareSubmission(fd);
       if (!prepared.ok) throw new Error(prepared.error || 'Failed to prepare');
 
       const uploadedCoverUrls = await uploadCovers(prepared.slug);
-      const presigned = await presignPatchAndSaveCovers({ slug: prepared.slug, version, coverUrls: uploadedCoverUrls });
-      if (!presigned.ok) throw new Error(presigned.error || 'Failed to presign');
 
-      if (patchFile) {
-        await fetch(presigned.presignedUrl, { method: 'PUT', body: patchFile, headers: { 'Content-Type': 'application/octet-stream' } });
-        const finalized = await confirmPatchUpload({ slug: prepared.slug, objectKey: presigned.objectKey!, version, firstUpload: true });
-        if (!finalized.ok) throw new Error(finalized.error || 'Failed to finalize');
-        try {
-          if (draftKey) {
-            localStorage.removeItem(draftKey);
-            await deleteDraftCovers(draftKey);
-          }
-        } catch {}
-        window.location.href = finalized.redirectTo!;
-      } else {
+      if (isArchive) {
+        // For archives, we don't need patch upload
         try {
           if (draftKey) {
             localStorage.removeItem(draftKey);
@@ -416,6 +418,30 @@ export default function HackSubmitForm({ dummy = false }: HackSubmitFormProps) {
           }
         } catch {}
         window.location.href = `/hack/${prepared.slug}`;
+      } else {
+        const presigned = await presignPatchAndSaveCovers({ slug: prepared.slug, version, coverUrls: uploadedCoverUrls });
+        if (!presigned.ok) throw new Error(presigned.error || 'Failed to presign');
+
+        if (patchFile) {
+          await fetch(presigned.presignedUrl, { method: 'PUT', body: patchFile, headers: { 'Content-Type': 'application/octet-stream' } });
+          const finalized = await confirmPatchUpload({ slug: prepared.slug, objectKey: presigned.objectKey!, version, firstUpload: true });
+          if (!finalized.ok) throw new Error(finalized.error || 'Failed to finalize');
+          try {
+            if (draftKey) {
+              localStorage.removeItem(draftKey);
+              await deleteDraftCovers(draftKey);
+            }
+          } catch {}
+          window.location.href = finalized.redirectTo!;
+        } else {
+          try {
+            if (draftKey) {
+              localStorage.removeItem(draftKey);
+              await deleteDraftCovers(draftKey);
+            }
+          } catch {}
+          window.location.href = `/hack/${prepared.slug}`;
+        }
       }
     } catch (e: any) {
       alert(e.message || 'Submission failed');
@@ -491,13 +517,13 @@ export default function HackSubmitForm({ dummy = false }: HackSubmitFormProps) {
   const preview = {
     slug: slug || "preview",
     title: title || "Your hack title",
-    author: profile?.username ? `@${profile.username}` : "You",
+    author: isArchive ? (originalAuthor || "Unknown") : (profile?.username ? `@${profile.username}` : "You"),
     summary: (summary || "Short description, max 100 characters.") as string,
     description: (description || "Write a longer markdown description here.") as string,
     covers: coverPreviews,
     baseRomId: baseRom,
     downloads: 0,
-    version: version || "v0.0.0",
+    version: isArchive ? "Archive" : (version || "v0.0.0"),
     tags: sortOrderedTags(tags.map((name, index) => ({ name, order: index + 1 }))),
     ...(boxArt ? { boxArt } : {}),
     socialLinks:
@@ -554,6 +580,7 @@ export default function HackSubmitForm({ dummy = false }: HackSubmitFormProps) {
                   setNewCoverFiles([]);
                   setCoverErrors([]);
                   setPatchFile(null);
+                  setOriginalAuthor("");
                   setShowMdPreview(false);
                   setStep(1);
                   // Clear file inputs if present
@@ -653,25 +680,44 @@ export default function HackSubmitForm({ dummy = false }: HackSubmitFormProps) {
                     <div role="textbox" aria-disabled className="h-11 rounded-md bg-[var(--surface-2)] px-3 text-sm ring-1 ring-inset ring-[var(--border)] flex items-center text-foreground/60 select-none">{language}</div>
                   )}
                 </div>
+
+                {isArchive && (
+                  <div className="grid gap-2">
+                    <label className="text-sm text-foreground/80">Original Author <span className="text-red-500">*</span></label>
+                    {!isDummy ? (
+                      <input
+                        value={originalAuthor}
+                        onChange={(e) => setOriginalAuthor(e.target.value)}
+                        placeholder="Name of the original hack creator"
+                        className="h-11 rounded-md bg-[var(--surface-2)] px-3 text-sm ring-1 ring-inset ring-[var(--border)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+                      />
+                    ) : (
+                      <div role="textbox" aria-disabled className="h-11 rounded-md bg-[var(--surface-2)] px-3 text-sm ring-1 ring-inset ring-[var(--border)] flex items-center text-foreground/60 select-none">Original author name</div>
+                    )}
+                    <div className="text-xs text-foreground/60">The name of the person or team who originally created this hack</div>
+                  </div>
+                )}
               </>
             )}
 
             {step === 2 && (
               <>
-                <div className="grid gap-2">
-                  <label className="text-sm text-foreground/80">Version <span className="text-red-500">*</span></label>
-                  {!isDummy ? (
-                    <input
-                      ref={versionInputRef}
-                      value={version}
-                      onChange={(e) => setVersion(e.target.value)}
-                      placeholder="e.g. v1.2.0"
-                      className={`h-11 rounded-md bg-[var(--surface-2)] px-3 text-sm ring-1 ring-inset ring-[var(--border)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]`}
-                    />
-                  ) : (
-                    <div role="textbox" aria-disabled className="h-11 rounded-md bg-[var(--surface-2)] px-3 text-sm ring-1 ring-inset ring-[var(--border)] flex items-center text-foreground/60 select-none">v0.1.0</div>
-                  )}
-                </div>
+                {!isArchive && (
+                  <div className="grid gap-2">
+                    <label className="text-sm text-foreground/80">Version <span className="text-red-500">*</span></label>
+                    {!isDummy ? (
+                      <input
+                        ref={versionInputRef}
+                        value={version}
+                        onChange={(e) => setVersion(e.target.value)}
+                        placeholder="e.g. v1.2.0"
+                        className={`h-11 rounded-md bg-[var(--surface-2)] px-3 text-sm ring-1 ring-inset ring-[var(--border)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]`}
+                      />
+                    ) : (
+                      <div role="textbox" aria-disabled className="h-11 rounded-md bg-[var(--surface-2)] px-3 text-sm ring-1 ring-inset ring-[var(--border)] flex items-center text-foreground/60 select-none">v0.1.0</div>
+                    )}
+                  </div>
+                )}
 
                 <div className="grid gap-2">
                   <label className="text-sm text-foreground/80">Tags <span className="text-red-500">*</span></label>
@@ -879,7 +925,7 @@ export default function HackSubmitForm({ dummy = false }: HackSubmitFormProps) {
               </>
             )}
 
-            {step === 4 && (
+            {step === 4 && !isArchive && (
               <div className="grid gap-3">
                 <label className="text-sm text-foreground/80">Provide patch <span className="text-red-500">*</span></label>
                 {!isDummy ? (
@@ -971,12 +1017,12 @@ export default function HackSubmitForm({ dummy = false }: HackSubmitFormProps) {
                   Back
                 </button>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm text-foreground/60">Step {step} of 4</span>
+                  <span className="text-sm text-foreground/60">Step {step} of {maxSteps}</span>
                 </div>
-                {step < 4 ? (
+                {step < maxSteps ? (
                   <button
                     type="button"
-                    onClick={() => setStep((s) => Math.min(4, s + 1))}
+                    onClick={() => setStep((s) => Math.min(maxSteps, s + 1))}
                     disabled={
                       submitting ||
                       (step === 1 && !step1Valid) ||

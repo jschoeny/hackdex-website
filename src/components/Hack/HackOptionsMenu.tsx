@@ -7,10 +7,16 @@ import { Menu, MenuButton, MenuItem, MenuItems, MenuSeparator } from "@headlessu
 interface HackOptionsMenuProps {
   slug: string;
   canEdit: boolean;
+  canUploadPatch: boolean;
   children?: React.ReactNode;
 }
 
-export default function HackOptionsMenu({ slug, canEdit, children }: HackOptionsMenuProps) {
+export default function HackOptionsMenu({
+  slug,
+  canEdit,
+  canUploadPatch,
+  children,
+}: HackOptionsMenuProps) {
   return (
     <Menu as="div" className="relative">
       <MenuButton
@@ -71,6 +77,8 @@ export default function HackOptionsMenu({ slug, canEdit, children }: HackOptions
             className="block w-full px-3 py-2 text-left text-sm data-focus:bg-black/5 dark:data-focus:bg-white/10">
             Edit
           </MenuItem>
+        </>}
+        {canUploadPatch && <>
           <MenuItem
             as="a"
             href={`/hack/${slug}/edit/patch`}

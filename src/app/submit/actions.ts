@@ -45,9 +45,17 @@ export async function prepareSubmission(formData: FormData) {
   const twitter = (formData.get("twitter") as string)?.trim();
   const pokecommunity = (formData.get("pokecommunity") as string)?.trim();
   const tags = (formData.get("tags") as string)?.split(",").map((t) => t.trim()).filter(Boolean) || [];
+  const original_author = (formData.get("original_author") as string)?.trim() || null;
+  const isArchive = formData.get("isArchive") === "true";
 
-  if (!title || !summary || !description || !base_rom || !language || !version) {
+  // For archives, version is not required; for regular hacks, it is
+  if (!title || !summary || !description || !base_rom || !language || (!isArchive && !version)) {
     return { ok: false, error: "Missing required fields" } as const;
+  }
+
+  // For archives, original_author is required
+  if (isArchive && !original_author) {
+    return { ok: false, error: "Original author is required for Archive hacks" } as const;
   }
 
   const baseSlug = slugify(title);
@@ -69,13 +77,15 @@ export async function prepareSubmission(formData: FormData) {
     description,
     base_rom,
     language,
-    version,
+    version: version || "Archive",
     created_by: user.id,
     downloads: 0,
     box_art,
     social_links,
-    approved: false,
+    approved: isArchive, // Auto-approve archives
     patch_url: "",
+    original_author: original_author || null,
+    current_patch: null, // Archives don't have patches
   } as HackInsert;
 
   const { error: insertErr } = await supabase.from("hacks").insert(insertPayload);

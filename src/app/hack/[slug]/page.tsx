@@ -18,6 +18,7 @@ import { headers } from "next/headers";
 import { MenuItem } from "@headlessui/react";
 import { FaCircleCheck } from "react-icons/fa6";
 import { sortOrderedTags } from "@/utils/format";
+import { FaArchive } from "react-icons/fa";
 
 interface HackDetailProps {
   params: Promise<{ slug: string }>;
@@ -44,7 +45,7 @@ export async function generateMetadata({ params }: HackDetailProps): Promise<Met
   const supabase = await createClient();
   const { data: hack } = await supabase
     .from("hacks")
-    .select("title,summary,approved,base_rom,box_art,created_by,created_at,updated_at")
+    .select("title,summary,approved,base_rom,box_art,created_by,created_at,updated_at,original_author,current_patch")
     .eq("slug", slug)
     .maybeSingle();
   if (!hack) return { title: "Hack not found" };
@@ -61,10 +62,13 @@ export async function generateMetadata({ params }: HackDetailProps): Promise<Met
     description: 'This hack is pending approval by an admin.',
   } satisfies Metadata;
 
+  const isArchive = hack.original_author != null && hack.current_patch === null;
   const baseRomName = baseRoms.find((r) => r.id === hack.base_rom)?.name ?? "Pokémon";
   const pageUrl = `/hack/${slug}`;
-  const title = `${hack.title} | ROM hack download`;
-  const description = `Play ${hack.title}, a fan-made Pokémon ROM hack for ${baseRomName}. ${hack.summary}`;
+  const title = isArchive ? `${hack.title} | Archive` : `${hack.title} | ROM hack download`;
+  const description = isArchive
+    ? `Archive entry for ${hack.title}, a fan-made ROM hack for ${baseRomName}. ${hack.summary}`
+    : `Play ${hack.title}, a fan-made ROM hack for ${baseRomName}. ${hack.summary}`;
 
   const keywords: string[] = [
     hack.title,
@@ -111,11 +115,14 @@ export default async function HackDetail({ params }: HackDetailProps) {
   const supabase = await createClient();
   const { data: hack, error } = await supabase
     .from("hacks")
-    .select("slug,title,summary,description,base_rom,created_at,updated_at,downloads,current_patch,box_art,social_links,created_by,approved")
+    .select("slug,title,summary,description,base_rom,created_at,updated_at,downloads,current_patch,box_art,social_links,created_by,approved,original_author")
     .eq("slug", slug)
     .maybeSingle();
   if (error || !hack) return notFound();
   const baseRom = baseRoms.find((r) => r.id === hack.base_rom);
+
+  // Detect if this is an Archive hack
+  const isArchive = hack.original_author != null && hack.current_patch === null;
 
   let images: string[] = [];
   const { data: covers } = await supabase
@@ -156,20 +163,21 @@ export default async function HackDetail({ params }: HackDetailProps) {
     data: { user },
   } = await supabase.auth.getUser();
   const canEdit = !!user && user.id === (hack.created_by as string);
+  const canUploadPatch = (!!user && user.id === (hack.created_by as string) && !isArchive);
 
   let isAdmin = false;
-  if (!hack.approved && !canEdit) {
+  if ((!hack.approved && !canEdit) || isArchive) {
     const { data: admin } = await supabase.rpc("is_admin");
     if (admin) {
       isAdmin = true;
-    } else {
+    } else if (!isArchive) {
       return notFound();
     }
   }
 
   // Get patch info, but don't sign URL yet (happens on user interaction)
   let patchFilename: string | null = null;
-  let patchVersion = "";
+  let patchVersion = isArchive ? "Archive" : "";
   let patchId: number | null = null;
   let lastUpdated: string | null = null;
   let patchCreatedAt: string | null = null;
@@ -250,16 +258,38 @@ export default async function HackDetail({ params }: HackDetailProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serialize(jsonLd, { isJSON: true }) }}
       />
-      <HackActions
-        title={hack.title}
-        version={patchVersion || "Pre-release"}
-        author={author}
-        baseRomId={baseRom?.id || ""}
-        platform={baseRom?.platform}
-        patchFilename={patchFilename}
-        patchId={patchId ?? undefined}
-        hackSlug={hack.slug}
-      />
+      {!isArchive && (
+        <HackActions
+          title={hack.title}
+          version={patchVersion || "Pre-release"}
+          author={author}
+          baseRomId={baseRom?.id || ""}
+          platform={baseRom?.platform}
+          patchFilename={patchFilename}
+          patchId={patchId ?? undefined}
+          hackSlug={hack.slug}
+        />
+      )}
+
+      {isArchive && (
+        <div className="flex flex-row items-center gap-4 mx-6 mt-6 rounded-lg border-2 border-rose-500/40 bg-rose-50 dark:bg-rose-900/10 p-4 md:pl-6">
+          <div className="flex items-center gap-4 md:gap-6">
+            <div className="flex-shrink-0">
+              <FaArchive className="text-rose-600 dark:text-rose-400" size={24} />
+            </div>
+          </div>
+          <div className="flex items-center">
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-rose-900 dark:text-rose-100 mb-0.5 md:mb-1">
+                Archive Entry
+              </h3>
+              <p className="text-sm text-rose-800 dark:text-rose-200">
+                This is an archive entry for informational and preservation purposes only. No patch file is available for download.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {!hack.approved && (
         isAdmin ? (
@@ -306,7 +336,7 @@ export default async function HackDetail({ params }: HackDetailProps) {
                 {patchVersion || "Pre-release"}
               </span>
             </div>
-            <p className="mt-1 text-[15px] text-foreground/70">By {author}</p>
+            <p className="mt-1 text-[15px] text-foreground/70">By {isArchive ? (hack.original_author || "Unknown") : author}</p>
             <p className="mt-2 text-sm text-foreground/75">{hack.summary}</p>
           </div>
           <div className="w-full mt-2 flex flex-col justify-between gap-6 md:flex-row md:items-end">
@@ -318,9 +348,9 @@ export default async function HackDetail({ params }: HackDetailProps) {
               ))}
             </div>
             <div className="flex items-center justify-end gap-2 self-end md:self-auto lg:min-w-[260px]">
-              <DownloadsBadge slug={hack.slug} initialCount={hack.downloads} />
-              <HackOptionsMenu slug={hack.slug} canEdit={canEdit}>
-                {isAdmin && (
+              {!isArchive && <DownloadsBadge slug={hack.slug} initialCount={hack.downloads} />}
+              <HackOptionsMenu slug={hack.slug} canEdit={canEdit || isAdmin} canUploadPatch={canUploadPatch || isAdmin}>
+                {isAdmin && !hack.approved && (
                   <MenuItem
                     as="a"
                     href={`/hack/${hack.slug}/approve`}
@@ -408,18 +438,32 @@ export default async function HackDetail({ params }: HackDetailProps) {
               </div>
             </div>
           )}
-          <div className="card overflow-hidden p-4 mt-4 text-sm text-foreground/60">
-            <p>
-              This page provides the official patch file for <span className="font-semibold">{hack.title}</span>. You can safely download the patched ROM for this hack
-              using our built-in patcher.
-            </p>
-            <p className="mt-2">
-              By pressing the "Patch Now" button, your browser will apply the downloaded <span className="font-semibold">{hack.title}</span> .bps patch file to your legally-obtained <span className="font-semibold">{baseRom?.name}</span> ROM. The patched ROM will then be automatically downloaded.
-            </p>
-            <p className="mt-2">
-              No pre-patched ROMs or base ROMs are hosted or distributed on this site. All patching is done locally on your device.
-            </p>
-          </div>
+          {isArchive ? (
+            <div className="card overflow-hidden p-4 mt-4 text-sm text-foreground/60">
+              <p>
+                This is an archive entry for <span className="font-semibold">{hack.title}</span> preserved for informational purposes.
+                {hack.original_author && (
+                  <span> The original author of this hack is <span className="font-semibold">{hack.original_author}</span>.</span>
+                )}
+              </p>
+              <p className="mt-2">
+                Archive entries do not include patch files and are maintained for historical reference and preservation purposes only.
+              </p>
+            </div>
+          ) : (
+            <div className="card overflow-hidden p-4 mt-4 text-sm text-foreground/60">
+              <p>
+                This page provides the official patch file for <span className="font-semibold">{hack.title}</span>. You can safely download the patched ROM for this hack
+                using our built-in patcher.
+              </p>
+              <p className="mt-2">
+                By pressing the "Patch Now" button, your browser will apply the downloaded <span className="font-semibold">{hack.title}</span> .bps patch file to your legally-obtained <span className="font-semibold">{baseRom?.name}</span> ROM. The patched ROM will then be automatically downloaded.
+              </p>
+              <p className="mt-2">
+                No pre-patched ROMs or base ROMs are hosted or distributed on this site. All patching is done locally on your device.
+              </p>
+            </div>
+          )}
         </aside>
       </div>
     </div>

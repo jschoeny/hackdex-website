@@ -14,7 +14,7 @@ export async function getSignedPatchUrl(slug: string): Promise<{ ok: true; url: 
   // Fetch hack to validate it exists
   const { data: hack, error: hackError } = await supabase
     .from("hacks")
-    .select("slug, approved, created_by, current_patch")
+    .select("slug, approved, created_by, current_patch, original_author")
     .eq("slug", slug)
     .maybeSingle();
 
@@ -32,6 +32,12 @@ export async function getSignedPatchUrl(slug: string): Promise<{ ok: true; url: 
     if (!isAdmin) {
       return { ok: false, error: "Hack not found" };
     }
+  }
+
+  // Check if this is an Archive hack (no patch available)
+  const isArchive = hack.original_author != null && hack.current_patch === null;
+  if (isArchive) {
+    return { ok: false, error: "Archive hacks do not have patch files available" };
   }
 
   // Check if patch exists

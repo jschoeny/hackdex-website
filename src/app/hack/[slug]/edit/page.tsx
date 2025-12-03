@@ -18,11 +18,22 @@ export default async function EditHackPage({ params }: EditPageProps) {
 
   const { data: hack } = await supabase
     .from("hacks")
-    .select("slug,title,summary,description,base_rom,language,box_art,social_links,created_by,current_patch")
+    .select("slug,title,summary,description,base_rom,language,box_art,social_links,created_by,current_patch,original_author")
     .eq("slug", slug)
     .maybeSingle();
   if (!hack) return notFound();
-  if (hack.created_by !== user!.id) {
+
+  // Check if user can edit: either they're the creator, or they're admin/archiver editing an Archive hack
+  const canEditAsCreator = hack.created_by === user!.id;
+  const isArchive = hack.original_author != null && hack.current_patch === null;
+  let canEditAsAdminOrArchiver = false;
+  if (isArchive && !canEditAsCreator) {
+    // Admin check automatically included with is_archiver check
+    const { data: isArchiver } = await supabase.rpc("is_archiver");
+    canEditAsAdminOrArchiver = !!isArchiver;
+  }
+
+  if (!canEditAsCreator && !canEditAsAdminOrArchiver) {
     redirect(`/hack/${slug}`);
   }
 
@@ -63,7 +74,7 @@ export default async function EditHackPage({ params }: EditPageProps) {
     description: hack.description,
     base_rom: hack.base_rom,
     language: hack.language,
-    version: version || "Pre-release",
+    version: isArchive ? "Archive" : (version || "Pre-release"),
     box_art: hack.box_art,
     social_links: (hack.social_links as unknown) as { discord?: string; twitter?: string; pokecommunity?: string } | null,
     tags,
@@ -84,9 +95,11 @@ export default async function EditHackPage({ params }: EditPageProps) {
             <FaChevronLeft size={16} className="inline-block mr-1" />
             Back to hack
           </Link>
-          <Link href={`/hack/${slug}/edit/patch`} className="inline-flex items-center justify-center rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-sm font-medium hover:bg-black/5 dark:hover:bg-white/10">
-            Upload new version
-          </Link>
+          {!isArchive && (
+            <Link href={`/hack/${slug}/edit/patch`} className="inline-flex items-center justify-center rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-sm font-medium hover:bg-black/5 dark:hover:bg-white/10">
+              Upload new version
+            </Link>
+          )}
         </div>
       </div>
       <div className="mt-4 lg:mt-8">
