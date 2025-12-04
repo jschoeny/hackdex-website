@@ -11,7 +11,7 @@ import useEmblaCarousel from "embla-carousel-react";
 import { usePathname } from "next/navigation";
 import { FaRegImages } from "react-icons/fa6";
 import { ImDownload } from "react-icons/im";
-import { FaArchive } from "react-icons/fa";
+import { RiArchiveStackFill } from "react-icons/ri";
 
 export interface HackCardAttributes {
   slug: string;
@@ -150,7 +150,7 @@ export default function HackCard({ hack, clickable = true, className = "" }: { h
           </div>
           {isArchive && (
             <div className="absolute right-3 top-3 z-10">
-              <FaArchive size={20} className="text-foreground/60" />
+              <RiArchiveStackFill size={22} className="text-foreground/60" />
             </div>
           )}
           {isCarousel && (

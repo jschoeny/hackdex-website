@@ -18,7 +18,7 @@ import { headers } from "next/headers";
 import { MenuItem } from "@headlessui/react";
 import { FaCircleCheck } from "react-icons/fa6";
 import { sortOrderedTags } from "@/utils/format";
-import { FaArchive } from "react-icons/fa";
+import { RiArchiveStackFill } from "react-icons/ri";
 import { getCoverSignedUrls } from "@/app/hack/actions";
 
 interface HackDetailProps {
@@ -271,7 +271,7 @@ export default async function HackDetail({ params }: HackDetailProps) {
         <div className="flex flex-row items-center gap-4 mx-6 mt-6 rounded-lg border-2 border-rose-500/40 bg-rose-50 dark:bg-rose-900/10 p-4 md:pl-6">
           <div className="flex items-center gap-4 md:gap-6">
             <div className="flex-shrink-0">
-              <FaArchive className="text-rose-600 dark:text-rose-400" size={24} />
+              <RiArchiveStackFill className="text-rose-600 dark:text-rose-400" size={28} />
             </div>
           </div>
           <div className="flex items-center">
