@@ -8,8 +8,7 @@ import TagSelector from "@/components/Submit/TagSelector";
 import { baseRoms } from "@/data/baseRoms";
 import Image from "next/image";
 import { createClient } from "@/utils/supabase/client";
-import { updateHack } from "@/app/hack/actions";
-import { saveHackCovers } from "@/app/hack/actions";
+import { updateHack, saveHackCovers, presignCoverUpload } from "@/app/hack/actions";
 import SortableCovers from "@/components/Hack/SortableCovers";
 
 interface HackEditFormProps {
@@ -65,7 +64,7 @@ export default function HackEditForm({ slug, initial }: HackEditFormProps) {
   const [coverItems, setCoverItems] = React.useState<CoverItem[]>(() => {
     const keys = initial.coverKeys || [];
     const urls = initial.signedCoverUrls || [];
-    return keys.map((k, i) => ({ type: "existing", key: k, url: urls[i] || supabase.storage.from('hack-covers').getPublicUrl(k).data.publicUrl }));
+    return keys.map((k, i) => ({ type: "existing", key: k, url: urls[i] || '' }));
   });
   const [coversBaseline, setCoversBaseline] = React.useState<{ keys: string[]; urls: string[] }>(() => ({
     keys: initial.coverKeys || [],
@@ -198,8 +197,9 @@ export default function HackEditForm({ slug, initial }: HackEditFormProps) {
         } else {
           const ext = item.file.name.split('.').pop();
           const path = `${slug}/${Date.now()}-${i}.${ext}`;
-          const { error } = await supabase.storage.from('hack-covers').upload(path, item.file);
-          if (error) throw error;
+          const presigned = await presignCoverUpload({ slug, objectKey: path });
+          if (!presigned.ok) throw new Error(presigned.error || 'Failed to presign cover upload');
+          await fetch(presigned.presignedUrl, { method: 'PUT', body: item.file, headers: { 'Content-Type': item.file.type || 'image/jpeg' } });
           keys.push(path);
         }
       }
@@ -329,7 +329,7 @@ export default function HackEditForm({ slug, initial }: HackEditFormProps) {
               <h2 className="text-xl font-semibold tracking-tight">Screenshots</h2>
               <div className="flex items-center gap-2">
                 {coversChanged && (
-                  <button type="button" onClick={() => setCoverItems(coversBaseline.keys.map((k, i) => ({ type: 'existing' as const, key: k, url: coversBaseline.urls[i] || supabase.storage.from('hack-covers').getPublicUrl(k).data.publicUrl })))} className="inline-flex h-8 items-center justify-center rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-3 text-[12px] cursor-pointer">
+                  <button type="button" onClick={() => setCoverItems(coversBaseline.keys.map((k, i) => ({ type: 'existing' as const, key: k, url: coversBaseline.urls[i] || '' })))} className="inline-flex h-8 items-center justify-center rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-3 text-[12px] cursor-pointer">
                     Revert
                   </button>
                 )}

@@ -2,7 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server";
 import type { TablesInsert } from "@/types/db";
-import { getMinioClient, PATCHES_BUCKET } from "@/utils/minio/server";
+import { getMinioClient, PATCHES_BUCKET, COVERS_BUCKET } from "@/utils/minio/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { APIEmbed } from "discord-api-types/v10";
@@ -158,8 +158,15 @@ export async function saveHackCovers(args: { slug: string; coverUrls: string[] }
       .eq("hack_slug", args.slug)
       .in("url", toRemove);
     if (delErr) return { ok: false, error: delErr.message } as const;
-    // Best-effort removal of orphaned files
-    await supabase.storage.from('hack-covers').remove(toRemove);
+    // Best-effort removal of orphaned files from S3
+    const client = getMinioClient();
+    for (const key of toRemove) {
+      try {
+        await client.removeObject(COVERS_BUCKET, key);
+      } catch (e) {
+        // Ignore errors - best effort cleanup
+      }
+    }
   }
 
   // Upsert desired rows (insert new and update existing positions/alts)
@@ -225,6 +232,46 @@ export async function presignNewPatchVersion(args: { slug: string; version: stri
   const url = await client.presignedPutObject(PATCHES_BUCKET, objectKey, 60 * 10);
 
   return { ok: true, presignedUrl: url, objectKey } as const;
+}
+
+export async function presignCoverUpload(args: { slug: string; objectKey: string }) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Unauthorized" } as const;
+
+  // Ensure hack exists and belongs to user
+  const { data: hack, error: hErr } = await supabase
+    .from("hacks")
+    .select("slug, created_by")
+    .eq("slug", args.slug)
+    .maybeSingle();
+  if (hErr) return { ok: false, error: hErr.message } as const;
+  if (!hack) return { ok: false, error: "Hack not found" } as const;
+  if (hack.created_by !== user.id) return { ok: false, error: "Forbidden" } as const;
+
+  const client = getMinioClient();
+  // 10 minutes to upload
+  const url = await client.presignedPutObject(COVERS_BUCKET, args.objectKey, 60 * 10);
+
+  return { ok: true, presignedUrl: url } as const;
+}
+
+export async function getCoverSignedUrl(objectKey: string) {
+  const client = getMinioClient();
+  // 5 minutes expiry for viewing
+  const url = await client.presignedGetObject(COVERS_BUCKET, objectKey, 60 * 5);
+  return url;
+}
+
+export async function getCoverSignedUrls(objectKeys: string[]) {
+  const client = getMinioClient();
+  // 5 minutes expiry for viewing
+  const urls = await Promise.all(
+    objectKeys.map(key => client.presignedGetObject(COVERS_BUCKET, key, 60 * 5))
+  );
+  return urls;
 }
 
 export async function approveHack(slug: string) {

@@ -6,6 +6,7 @@ import { baseRoms } from "@/data/baseRoms";
 import HackCard from "@/components/HackCard";
 import { createClient } from "@/utils/supabase/client";
 import { prepareSubmission, presignPatchAndSaveCovers, confirmPatchUpload } from "@/app/submit/actions";
+import { presignCoverUpload } from "@/app/hack/actions";
 import { DndContext, PointerSensor, closestCenter, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -168,8 +169,9 @@ export default function HackSubmitForm({
       const file = newCoverFiles[i];
       const fileExt = file.name.split('.').pop();
       const path = `${slug}/${Date.now()}-${i}.${fileExt}`;
-      const { error } = await supabase.storage.from('hack-covers').upload(path, file);
-      if (error) throw error;
+      const presigned = await presignCoverUpload({ slug, objectKey: path });
+      if (!presigned.ok) throw new Error(presigned.error || 'Failed to presign cover upload');
+      await fetch(presigned.presignedUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type || 'image/jpeg' } });
       urls.push(path);
     }
     return urls;

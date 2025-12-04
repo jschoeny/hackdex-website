@@ -15,3 +15,4 @@ export function getMinioClient(): Client {
 }
 
 export const PATCHES_BUCKET = process.env.PATCHES_BUCKET!;
+export const COVERS_BUCKET = process.env.COVERS_BUCKET!;

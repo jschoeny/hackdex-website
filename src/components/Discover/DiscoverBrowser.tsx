@@ -12,6 +12,7 @@ import { BsSdCardFill } from "react-icons/bs";
 import { CATEGORY_ICONS } from "@/components/Icons/tagCategories";
 import { useBaseRoms } from "@/contexts/BaseRomContext";
 import { sortOrderedTags, OrderedTag } from "@/utils/format";
+import { getCoverSignedUrls } from "@/app/hack/actions";
 
 
 export default function DiscoverBrowser() {
@@ -66,26 +67,22 @@ export default function DiscoverBrowser() {
         .order("position", { ascending: true });
       const coversBySlug = new Map<string, string[]>();
       if (coverRows && coverRows.length > 0) {
-        const { data: imagesData } = await supabase.storage
-          .from('hack-covers')
-          .createSignedUrls(coverRows.map(c => c.url), 60 * 5);
-        if (imagesData) {
-          // Map: storage object url -> signedUrl
-          const urlToSignedUrl = new Map<string, string>();
-          imagesData.forEach((d, idx) => {
-            // If creation fails, d.signedUrl might be undefined; filter those out
-            if (d.signedUrl) urlToSignedUrl.set(coverRows[idx].url, d.signedUrl);
-          });
+        const coverKeys = coverRows.map(c => c.url);
+        const urls = await getCoverSignedUrls(coverKeys);
+        // Map: storage object url -> signedUrl
+        const urlToSignedUrl = new Map<string, string>();
+        coverKeys.forEach((key, idx) => {
+          if (urls[idx]) urlToSignedUrl.set(key, urls[idx]);
+        });
 
-          coverRows.forEach((c) => {
-            const arr = coversBySlug.get(c.hack_slug) || [];
-            const signed = urlToSignedUrl.get(c.url);
-            if (signed) {
-              arr.push(signed);
-              coversBySlug.set(c.hack_slug, arr);
-            }
-          });
-        }
+        coverRows.forEach((c) => {
+          const arr = coversBySlug.get(c.hack_slug) || [];
+          const signed = urlToSignedUrl.get(c.url);
+          if (signed) {
+            arr.push(signed);
+            coversBySlug.set(c.hack_slug, arr);
+          }
+        });
       }
       const { data: tagRows } = await supabase
         .from("hack_tags")

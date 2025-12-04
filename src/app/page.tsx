@@ -5,6 +5,7 @@ import { createClient } from "@/utils/supabase/server";
 import HackCard from "@/components/HackCard";
 import Button from "@/components/Button";
 import { sortOrderedTags } from "@/utils/format";
+import { getCoverSignedUrls } from "@/app/hack/actions";
 
 export const metadata: Metadata = {
   alternates: {
@@ -38,25 +39,21 @@ export default async function Home() {
       .order("position", { ascending: true });
 
     const coversBySlug = new Map<string, string[]>();
-    if (coverRows && coverRows.length > 0) {
-      const { data: imagesData } = await supabase.storage
-        .from("hack-covers")
-        .createSignedUrls(coverRows.map((c) => c.url), 60 * 5);
-      if (imagesData) {
-        const urlToSignedUrl = new Map<string, string>();
-        imagesData.forEach((d, idx) => {
-          if (d.signedUrl) urlToSignedUrl.set(coverRows[idx].url, d.signedUrl);
-        });
+    if (coverRows && coverRows.length > 0) {      const coverKeys = coverRows.map((c) => c.url);
+      const signedUrls = await getCoverSignedUrls(coverKeys);
+      const urlToSignedUrl = new Map<string, string>();
+      coverKeys.forEach((key, idx) => {
+        urlToSignedUrl.set(key, signedUrls[idx]);
+      });
 
-        coverRows.forEach((c) => {
-          const arr = coversBySlug.get(c.hack_slug) || [];
-          const signed = urlToSignedUrl.get(c.url);
-          if (signed) {
-            arr.push(signed);
-            coversBySlug.set(c.hack_slug, arr);
-          }
-        });
-      }
+      coverRows.forEach((c) => {
+        const arr = coversBySlug.get(c.hack_slug) || [];
+        const signed = urlToSignedUrl.get(c.url);
+        if (signed) {
+          arr.push(signed);
+          coversBySlug.set(c.hack_slug, arr);
+        }
+      });
     }
 
     // Fetch tags

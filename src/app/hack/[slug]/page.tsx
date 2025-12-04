@@ -19,6 +19,7 @@ import { MenuItem } from "@headlessui/react";
 import { FaCircleCheck } from "react-icons/fa6";
 import { sortOrderedTags } from "@/utils/format";
 import { FaArchive } from "react-icons/fa";
+import { getCoverSignedUrls } from "@/app/hack/actions";
 
 interface HackDetailProps {
   params: Promise<{ slug: string }>;
@@ -131,12 +132,7 @@ export default async function HackDetail({ params }: HackDetailProps) {
     .eq("hack_slug", slug)
     .order("position", { ascending: true });
   if (covers && covers.length > 0) {
-    const { data: imagesData } = await supabase.storage
-      .from('hack-covers')
-      .createSignedUrls(covers.map(c => c.url), 60 * 5);
-    if (imagesData) {
-      images = imagesData.map(d => d.signedUrl);
-    }
+    images = await getCoverSignedUrls(covers.map(c => c.url));
   }
 
   const { data: tagRows } = await supabase

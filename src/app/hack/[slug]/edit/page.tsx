@@ -3,6 +3,7 @@ import HackForm from "@/components/Hack/HackForm";
 import { createClient } from "@/utils/supabase/server";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa6";
 import Link from "next/link";
+import { getCoverSignedUrls } from "@/app/hack/actions";
 
 interface EditPageProps {
   params: Promise<{ slug: string }>;
@@ -46,10 +47,7 @@ export default async function EditHackPage({ params }: EditPageProps) {
     .order("position", { ascending: true });
   if (covers && covers.length > 0) {
     coverKeys = covers.map((c: any) => c.url);
-    const { data: urls } = await supabase.storage
-      .from('hack-covers')
-      .createSignedUrls(coverKeys, 60 * 5);
-    if (urls) signedCoverUrls = urls.map((u) => u.signedUrl);
+    signedCoverUrls = await getCoverSignedUrls(coverKeys);
   }
 
   const { data: tagRows } = await supabase
