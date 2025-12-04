@@ -6,6 +6,7 @@ import HackCard from "@/components/HackCard";
 import Button from "@/components/Button";
 import { sortOrderedTags } from "@/utils/format";
 import { getCoverSignedUrls } from "@/app/hack/actions";
+import { HackCardAttributes } from "@/components/HackCard";
 
 export const metadata: Metadata = {
   alternates: {
@@ -27,7 +28,7 @@ export default async function Home() {
     .order("downloads", { ascending: false })
     .limit(6);
 
-  let hackData: any[] = [];
+  let hackData: HackCardAttributes[] = [];
   if (popularHacks && popularHacks.length > 0) {
     const slugs = popularHacks.map((h) => h.slug);
 
@@ -110,6 +111,7 @@ export default async function Home() {
       version: mappedVersions.get(r.slug) || "Pre-release",
       summary: r.summary,
       description: r.description,
+      isArchive: r.original_author != null && r.current_patch === null,
     }));
   }
   return (

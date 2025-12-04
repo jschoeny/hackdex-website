@@ -13,6 +13,7 @@ import { CATEGORY_ICONS } from "@/components/Icons/tagCategories";
 import { useBaseRoms } from "@/contexts/BaseRomContext";
 import { sortOrderedTags, OrderedTag } from "@/utils/format";
 import { getCoverSignedUrls } from "@/app/hack/actions";
+import { HackCardAttributes } from "@/components/HackCard";
 
 
 export default function DiscoverBrowser() {
@@ -21,7 +22,7 @@ export default function DiscoverBrowser() {
   const [selectedTags, setSelectedTags] = React.useState<string[]>([]);
   const [selectedBaseRoms, setSelectedBaseRoms] = React.useState<string[]>([]);
   const [sort, setSort] = React.useState("popular");
-  const [hacks, setHacks] = React.useState<any[]>([]);
+  const [hacks, setHacks] = React.useState<HackCardAttributes[]>([]);
   const [tagGroups, setTagGroups] = React.useState<Record<string, string[]>>({});
   const [ungroupedTags, setUngroupedTags] = React.useState<string[]>([]);
   const [loadingHacks, setLoadingHacks] = React.useState(true);
@@ -46,19 +47,24 @@ export default function DiscoverBrowser() {
     const run = async () => {
       setLoadingHacks(true);
       setLoadingTags(true);
-      let orderBy: string | undefined = undefined;
+      let query = supabase
+        .from("hacks")
+        .select("slug,title,summary,description,base_rom,downloads,created_by,updated_at,current_patch,original_author");
+
       if (sort === "popular") {
-        orderBy = "downloads";
+        // When sorting by popularity, always show non-archive hacks first.
+        // Archives are defined as rows where original_author IS NOT NULL and current_patch IS NULL,
+        // so ordering by current_patch with NULLS LAST effectively pushes archives to the end.
+        query = query
+          .order("downloads", { ascending: false })
+          .order("current_patch", { ascending: false, nullsFirst: false });
       } else if (sort === "updated") {
-        orderBy = "updated_at";
+        query = query.order("updated_at", { ascending: false });
       } else {
-        orderBy = "created_at";
+        query = query.order("created_at", { ascending: false });
       }
 
-      const { data: rows } = await supabase
-        .from("hacks")
-        .select("slug,title,summary,description,base_rom,downloads,created_by,updated_at,current_patch,original_author")
-        .order(orderBy, { ascending: false });
+      const { data: rows } = await query;
       const slugs = (rows || []).map((r) => r.slug);
       const { data: coverRows } = await supabase
         .from("hack_covers")
@@ -132,6 +138,7 @@ export default function DiscoverBrowser() {
         version: mappedVersions.get(r.slug) || "Pre-release",
         summary: r.summary,
         description: r.description,
+        isArchive: r.original_author != null && r.current_patch === null,
       }));
 
       setHacks(mapped);
@@ -177,15 +184,15 @@ export default function DiscoverBrowser() {
     }
     // AND filter across selected tags: hack must include all selectedTags
     if (selectedTags.length > 0) {
-      out = out.filter((h) => selectedTags.every((t) => h.tags.includes(t)));
+      out = out.filter((h) => selectedTags.every((t) => h.tags.some((tag) => tag.name === t)));
     }
     // OR filter across base roms: hack's baseRomId must be in selectedBaseRoms
     if (selectedBaseRoms.length > 0) {
-      out = out.filter((h) => selectedBaseRoms.includes(h.baseRomId));
+      out = out.filter((h) => h.baseRomId && selectedBaseRoms.includes(h.baseRomId));
     }
     // Filter to hacks whose base ROM is ready (linked with permission or cached)
     if (onlyReady) {
-      out = out.filter((h) => readyBaseRomIds.has(h.baseRomId));
+      out = out.filter((h) => !h.isArchive && h.baseRomId && readyBaseRomIds.has(h.baseRomId));
     }
     return out;
   }, [hacks, query, selectedTags, selectedBaseRoms, onlyReady, readyBaseRomIds]);

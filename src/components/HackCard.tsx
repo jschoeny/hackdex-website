@@ -11,8 +11,9 @@ import useEmblaCarousel from "embla-carousel-react";
 import { usePathname } from "next/navigation";
 import { FaRegImages } from "react-icons/fa6";
 import { ImDownload } from "react-icons/im";
+import { FaArchive } from "react-icons/fa";
 
-type CardHack = {
+export interface HackCardAttributes {
   slug: string;
   title: string;
   author: string;
@@ -23,15 +24,19 @@ type CardHack = {
   version: string;
   summary?: string;
   description?: string;
+  isArchive?: boolean;
 };
 
-export default function HackCard({ hack, clickable = true, className = "" }: { hack: CardHack; clickable?: boolean; className?: string }) {
+export default function HackCard({ hack, clickable = true, className = "" }: { hack: HackCardAttributes; clickable?: boolean; className?: string }) {
+  const isArchive = !!hack.isArchive;
   const { isLinked, hasPermission, hasCached } = useBaseRoms();
   const match = baseRoms.find((r) => r.id === hack.baseRomId);
   const baseId = match?.id ?? undefined;
   const baseName = match?.name ?? undefined;
-  const linked = baseId ? isLinked(baseId) : false;
-  const ready = baseId ? hasPermission(baseId) || hasCached(baseId) : false;
+
+  // Only compute base ROM readiness for non-archive hacks
+  const linked = !isArchive && baseId ? isLinked(baseId) : false;
+  const ready = !isArchive && baseId ? hasPermission(baseId) || hasCached(baseId) : false;
   const images = (hack.covers && hack.covers.length > 0 ? hack.covers : []).filter(Boolean);
   const isCarousel = images.length > 1;
   const pathname = usePathname();
@@ -121,7 +126,7 @@ export default function HackCard({ hack, clickable = true, className = "" }: { h
           ) : null}
 
           <div className="absolute left-3 top-3 z-10 flex gap-2">
-            {hack.tags.slice(0, 2).map((t) => (
+            {hack.tags.slice(0, isArchive ? 3 : 2).map((t) => (
               <span
                 key={t.name}
                 className="rounded-full px-2 py-0.5 text-xs ring-1 ring-foreground/20 dark:ring-foreground/30 bg-background/70 text-foreground/90 backdrop-blur-md"
@@ -129,18 +134,25 @@ export default function HackCard({ hack, clickable = true, className = "" }: { h
                 {t.name}
               </span>
             ))}
-            <span
-              className={`rounded-full px-2 py-0.5 text-xs ring-1 backdrop-blur-md ${
-                ready
-                  ? "bg-emerald-600/60 text-white ring-emerald-700/80 dark:bg-emerald-500/25 dark:text-emerald-100 dark:ring-emerald-400/90"
-                  : linked
-                  ? "bg-amber-600/60 text-white ring-amber-700/80 dark:bg-amber-500/50 dark:text-amber-100 dark:ring-amber-400/90"
-                  : "bg-red-600/60 text-white ring-red-700/80 dark:bg-red-500/50 dark:text-red-100 dark:ring-red-400/90"
-              }`}
-            >
-              {ready ? "Ready" : linked ? "Permission needed" : "Base ROM needed"}
-            </span>
+            {!isArchive && (
+              <span
+                className={`rounded-full px-2 py-0.5 text-xs ring-1 backdrop-blur-md ${
+                  ready
+                    ? "bg-emerald-600/60 text-white ring-emerald-700/80 dark:bg-emerald-500/25 dark:text-emerald-100 dark:ring-emerald-400/90"
+                    : linked
+                    ? "bg-amber-600/60 text-white ring-amber-700/80 dark:bg-amber-500/50 dark:text-amber-100 dark:ring-amber-400/90"
+                    : "bg-red-600/60 text-white ring-red-700/80 dark:bg-red-500/50 dark:text-red-100 dark:ring-red-400/90"
+                }`}
+              >
+                {ready ? "Ready" : linked ? "Permission needed" : "Base ROM needed"}
+              </span>
+            )}
           </div>
+          {isArchive && (
+            <div className="absolute right-3 top-3 z-10">
+              <FaArchive size={20} className="text-foreground/60" />
+            </div>
+          )}
           {isCarousel && (
             <div className="absolute inset-x-0 bottom-2 z-10 flex items-center justify-center gap-3">
               {images.map((_, i) => (
@@ -164,8 +176,8 @@ export default function HackCard({ hack, clickable = true, className = "" }: { h
         </div>
         <div className="p-4">
           <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
+            <div className="min-w-0 w-full">
+              <div className={`flex items-center gap-2 ${isArchive ? "justify-between" : "justify-start"}`}>
                 <h3 className="line-clamp-1 text-[15px] font-semibold tracking-tight">
                   {hack.title}
                 </h3>
@@ -175,10 +187,12 @@ export default function HackCard({ hack, clickable = true, className = "" }: { h
               </div>
               <p className="mt-1 text-xs text-foreground/60">By {hack.author}</p>
             </div>
-            <div className="flex items-center gap-1 text-sm text-foreground/70">
+            {!isArchive && (
+              <div className="flex items-center gap-1 text-sm text-foreground/70">
               <ImDownload size={16} />
-              <span>{formatCompactNumber(hack.downloads)}</span>
-            </div>
+                <span>{formatCompactNumber(hack.downloads)}</span>
+              </div>
+            )}
           </div>
           <p className="mt-2 line-clamp-2 text-sm text-foreground/70">
             {(() => {
