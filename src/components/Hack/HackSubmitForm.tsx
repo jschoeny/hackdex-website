@@ -5,7 +5,7 @@ import Image from "next/image";
 import { baseRoms } from "@/data/baseRoms";
 import HackCard from "@/components/HackCard";
 import { createClient } from "@/utils/supabase/client";
-import { prepareSubmission, presignPatchAndSaveCovers, confirmPatchUpload } from "@/app/submit/actions";
+import { prepareSubmission, presignPatchAndSaveCovers, confirmPatchUpload, saveHackCovers } from "@/app/submit/actions";
 import { presignCoverUpload } from "@/app/hack/actions";
 import { DndContext, PointerSensor, closestCenter, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -413,6 +413,8 @@ export default function HackSubmitForm({
 
       if (isArchive) {
         // For archives, we don't need patch upload
+        const coversSaved = await saveHackCovers({ slug: prepared.slug, coverUrls: uploadedCoverUrls });
+        if (!coversSaved.ok) throw new Error(coversSaved.error || 'Failed to save covers');
         try {
           if (draftKey) {
             localStorage.removeItem(draftKey);

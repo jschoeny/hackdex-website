@@ -110,6 +110,35 @@ export async function prepareSubmission(formData: FormData) {
   return { ok: true, slug } as const;
 }
 
+export async function saveHackCovers(args: { slug: string; coverUrls: string[] }) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Unauthorized" } as const;
+
+  // Ensure hack exists and belongs to user (created_by) to prevent spoof
+  const { data: hack, error: hErr } = await supabase
+    .from("hacks")
+    .select("slug, created_by")
+    .eq("slug", args.slug)
+    .maybeSingle();
+  if (hErr) return { ok: false, error: hErr.message } as const;
+  if (!hack) return { ok: false, error: "Hack not found" } as const;
+  if (hack.created_by !== user.id) return { ok: false, error: "Forbidden" } as const;
+
+  // Insert covers (overwrite positions)
+  if (args.coverUrls && args.coverUrls.length > 0) {
+    // Clear any existing rows first (idempotency on retry)
+    await supabase.from("hack_covers").delete().eq("hack_slug", args.slug);
+    const rows = args.coverUrls.map((url, idx) => ({ hack_slug: args.slug, url, position: idx + 1 }));
+    const { error: cErr } = await supabase.from("hack_covers").insert(rows);
+    if (cErr) return { ok: false, error: cErr.message } as const;
+  }
+
+  return { ok: true } as const;
+}
+
 export async function presignPatchAndSaveCovers(args: {
   slug: string;
   version: string;
