@@ -221,13 +221,16 @@ const HackActions: React.FC<HackActionsProps> = ({
             deviceId = crypto.randomUUID();
             localStorage.setItem(key, deviceId);
           }
-          const deviceIdObscured = deviceId.split("-");
-          const result = await updatePatchDownloadCount(patchId, deviceIdObscured);
-          if (!result.ok) {
-            console.error(result.error);
-          } else if (result.didIncrease) {
-            window.dispatchEvent(new CustomEvent<DownloadEventDetail>("hack:patch-applied", { detail: { slug: hackSlug } }));
-          }
+          // Defer update to next tick to avoid Safari cancelling the request
+          setTimeout(async () => {
+            const deviceIdObscured = deviceId.split("-");
+            const result = await updatePatchDownloadCount(patchId, deviceIdObscured);
+            if (!result.ok) {
+              console.error(result.error);
+            } else if (result.didIncrease) {
+              window.dispatchEvent(new CustomEvent<DownloadEventDetail>("hack:patch-applied", { detail: { slug: hackSlug } }));
+            }
+          }, 0);
         }
       } catch {}
     } catch (e: any) {
