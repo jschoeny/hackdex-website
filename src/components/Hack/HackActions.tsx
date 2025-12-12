@@ -7,7 +7,7 @@ import { baseRoms } from "@/data/baseRoms";
 import BinFile from "rom-patcher-js/rom-patcher-js/modules/BinFile.js";
 import BPS from "rom-patcher-js/rom-patcher-js/modules/RomPatcher.format.bps.js";
 import type { DownloadEventDetail } from "@/types/util";
-import { getSignedPatchUrl } from "@/app/hack/[slug]/actions";
+import { getSignedPatchUrl, updatePatchDownloadCount } from "@/app/hack/[slug]/actions";
 
 interface HackActionsProps {
   title: string;
@@ -221,17 +221,12 @@ const HackActions: React.FC<HackActionsProps> = ({
             deviceId = crypto.randomUUID();
             localStorage.setItem(key, deviceId);
           }
-          await fetch(`/api/patches/${patchId}/applied`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ deviceId }),
-          })
-            .then((res) => {
-              if (res.status === 201) {
-                window.dispatchEvent(new CustomEvent<DownloadEventDetail>("hack:patch-applied", { detail: { slug: hackSlug } }));
-              }
-            })
-            .catch(() => {});
+          const result = await updatePatchDownloadCount(patchId, deviceId);
+          if (!result.ok) {
+            console.error(result.error);
+          } else if (result.didIncrease) {
+            window.dispatchEvent(new CustomEvent<DownloadEventDetail>("hack:patch-applied", { detail: { slug: hackSlug } }));
+          }
         }
       } catch {}
     } catch (e: any) {

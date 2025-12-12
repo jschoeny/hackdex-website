@@ -71,6 +71,20 @@ export async function getSignedPatchUrl(slug: string): Promise<{ ok: true; url: 
   }
 }
 
+export async function updatePatchDownloadCount(patchId: number, deviceId: string): Promise<{ ok: true; didIncrease: boolean } | { ok: false; error: string }> {
+  const supabase = await createClient();
+  const { error: updateError } = await supabase
+    .from("patch_downloads")
+    .insert({ patch: patchId, device_id: deviceId });
+  if (updateError) {
+    if ('code' in updateError && (updateError.code === '23505' || /duplicate|unique/i.test(updateError.message))) {
+      return { ok: true, didIncrease: false };
+    }
+    return { ok: false, error: updateError.message };
+  }
+  return { ok: true, didIncrease: true };
+}
+
 export async function submitHackReport(data: {
   slug: string;
   reportType: "hateful" | "harassment" | "misleading" | "stolen";
