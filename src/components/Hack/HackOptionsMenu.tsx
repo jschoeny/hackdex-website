@@ -36,6 +36,21 @@ export default function HackOptionsMenu({
           className="absolute right-0 z-10 mt-2 w-40 origin-top-right overflow-hidden rounded-md border border-[var(--border)] bg-[var(--surface-2)] backdrop-blur-lg shadow-lg focus:outline-none transition data-closed:scale-95 data-closed:transform data-closed:opacity-0 data-enter:duration-100 data-enter:ease-out data-leave:duration-75 data-leave:ease-in"
         >
           <MenuItem
+            as="a"
+            href={`/hack/${slug}/changelog`}
+            className="block w-full px-3 py-2 text-left text-sm data-focus:bg-black/5 dark:data-focus:bg-white/10">
+            Changelog
+          </MenuItem>
+          {!canUploadPatch && (
+            <MenuItem
+              as="a"
+              href={`/hack/${slug}/versions`}
+              className="block w-full px-3 py-2 text-left text-sm data-focus:bg-black/5 dark:data-focus:bg-white/10">
+              Version history
+            </MenuItem>
+          )}
+          <MenuSeparator className="my-1 h-px bg-[var(--border)]" />
+          <MenuItem
             as="button"
             onClick={async () => {
               try {
@@ -82,14 +97,14 @@ export default function HackOptionsMenu({
               Edit
             </MenuItem>
           </>}
-          {canUploadPatch && <>
+          {canUploadPatch && (
             <MenuItem
               as="a"
-              href={`/hack/${slug}/edit/patch`}
+              href={`/hack/${slug}/versions`}
               className="block w-full px-3 py-2 text-left text-sm data-focus:bg-black/5 dark:data-focus:bg-white/10">
-              Upload new version
+              Manage versions
             </MenuItem>
-          </>}
+          )}
           {children && <>
             <MenuSeparator className="my-1 h-px bg-[var(--border)]" />
             {children}
