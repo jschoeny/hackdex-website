@@ -243,12 +243,14 @@ export async function confirmPatchUpload(args: { slug: string; objectKey: string
   if (uErr) return { ok: false, error: uErr.message } as const;
 
   if (process.env.DISCORD_WEBHOOK_ADMIN_URL) {
-    const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+    const { data: profile } = await supabase.from('profiles').select('*').eq('id', hack.created_by).single();
 
-    const displayName = profile?.username ? `@${profile.username}` : user.id;
+    const displayName = profile?.username ? `@${profile.username}` : hack.created_by;
+    const uploadedByDifferentUser = hack.created_by !== user.id;
+
     const embed: APIEmbed = args.firstUpload ? {
       title: `:tada: ${hack.title}`,
-      description: `A new hack by **${displayName}** is pending approval by an admin.`,
+      description: `A new hack by **${displayName}** is pending approval by an admin.` + (uploadedByDifferentUser ? ` (Uploaded by ${user.id})` : ''),
       color: 0x40f56a,
       url: `${process.env.NEXT_PUBLIC_SITE_URL}/hack/${args.slug}`,
       footer: {

@@ -295,7 +295,7 @@ export async function approveHack(slug: string) {
   // Check if hack exists
   const { data: hack, error: hErr } = await supabase
     .from("hacks")
-    .select("slug, approved, title")
+    .select("slug, approved, title, created_by")
     .eq("slug", slug)
     .maybeSingle();
   if (hErr) return { ok: false, error: hErr.message } as const;
@@ -320,7 +320,7 @@ export async function approveHack(slug: string) {
   if (updateErr) return { ok: false, error: updateErr.message } as const;
 
   if (process.env.DISCORD_WEBHOOK_ADMIN_URL) {
-    const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+    const { data: profile } = await supabase.from('profiles').select('*').eq('id', hack.created_by).single();
     const displayName = profile?.username ? `@${profile.username}` : user.id;
     const embed: APIEmbed = {
       title: `:tada: ${hack.title} :tada:`,
