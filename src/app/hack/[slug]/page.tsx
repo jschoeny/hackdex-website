@@ -22,6 +22,7 @@ import { sortOrderedTags } from "@/utils/format";
 import { RiArchiveStackFill } from "react-icons/ri";
 import { getCoverSignedUrls } from "@/app/hack/actions";
 import { isInformationalArchiveHack, isDownloadableArchiveHack, isArchiveHack, checkEditPermission } from "@/utils/hack";
+import Avatar from "@/components/Account/Avatar";
 
 interface HackDetailProps {
   params: Promise<{ slug: string }>;
@@ -149,7 +150,7 @@ export default async function HackDetail({ params }: HackDetailProps) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("username")
+    .select("username,avatar_url")
     .eq("id", hack.created_by as string)
     .maybeSingle();
   const author = profile?.username ? `@${profile.username}` : "Unknown";
@@ -346,8 +347,17 @@ export default async function HackDetail({ params }: HackDetailProps) {
                 </div>
               )}
             </div>
-            <p className="mt-1 text-[15px] text-foreground/70">By {isArchive ? (hack.original_author || "Unknown") : author}</p>
-            <p className="mt-2 text-sm text-foreground/75">{hack.summary}</p>
+            <div className={`mt-1 flex items-center gap-2 ${!isArchive ? "h-[28px]" : ""}`}>
+              {!isArchive && (
+                <Avatar
+                  uid={hack.created_by as string}
+                  url={profile?.avatar_url ?? null}
+                  size={28}
+                />
+              )}
+              <p className="text-[16px] md:text-[18px] text-foreground/70">By {isArchive ? (hack.original_author || "Unknown") : author}</p>
+            </div>
+            <p className={`${!isArchive ? "mt-4" : "mt-2"} text-sm text-foreground/75`}>{hack.summary}</p>
           </div>
           <div className="w-full mt-2 flex flex-col justify-between gap-6 md:flex-row md:items-end">
             <div className="flex flex-wrap gap-2">
