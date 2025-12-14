@@ -14,14 +14,13 @@ export default function SignupForm() {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [confirm, setConfirm] = React.useState("");
-  const [invite, setInvite] = React.useState<string>("");
   const [showPassword, setShowPassword] = React.useState(false);
   const [emailError, setEmailError] = React.useState<string | null>(null);
   const [passwordError, setPasswordError] = React.useState<string | null>(null);
 
   const [state, formAction, isPending] = useActionState<AuthActionState, FormData>(signup, { error: null });
   const passwordsMatch = password === confirm;
-  const isValid = !emailError && !passwordError && passwordsMatch && Boolean(invite);
+  const isValid = !emailError && !passwordError && passwordsMatch;
 
   useEffect(() => {
     const { error } = validateEmail(email);
@@ -34,13 +33,6 @@ export default function SignupForm() {
   }, [password]);
 
   const redirectTo = searchParams.get("redirectTo");
-
-  useEffect(() => {
-    const inviteFromParams = searchParams.get("invite") || "";
-    if (inviteFromParams) {
-      setInvite(inviteFromParams);
-    }
-  }, []);
 
   // Redirect if user already authenticated (e.g., opened signup while logged in)
   useEffect(() => {
@@ -60,27 +52,6 @@ export default function SignupForm() {
           {state?.error}
         </div>
       )}
-      <div className="grid gap-2">
-        <label htmlFor="inviteCode" className="text-sm text-foreground/80">Invite code</label>
-        <input
-          id="inviteCode"
-          name="inviteCode"
-          type="text"
-          value={invite}
-          onChange={(e) => setInvite(e.target.value)}
-          placeholder="Enter your invite code"
-          className={`h-11 rounded-md bg-[var(--surface-2)] px-3 text-sm ring-1 ring-inset ring-[var(--border)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)] ${
-            invite ? "bg-[var(--surface-2)] ring-[var(--border)]" : "bg-[var(--surface-2)] ring-[var(--border)]"
-          }`}
-          required
-          inputMode="text"
-          autoComplete="off"
-          spellCheck={false}
-        />
-        {!invite && (
-          <span className="text-xs text-foreground/60">An invite code is required to create an account.</span>
-        )}
-      </div>
       <div className="grid gap-2">
         <label htmlFor="email" className="text-sm text-foreground/80">Email</label>
         <input
