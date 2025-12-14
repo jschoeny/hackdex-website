@@ -110,6 +110,24 @@ export async function prepareSubmission(formData: FormData) {
     }
   }
 
+  if (process.env.DISCORD_WEBHOOK_ADMIN_URL) {
+    const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+    const displayName = profile?.username ? `@${profile.username}` : user.id;
+
+    const embed: APIEmbed = {
+      title: `Hack submission: ${title}`,
+      description: `A new hack by **${displayName}** is being prepared for submission.`,
+      color: 0x40f56a,
+      url: `${process.env.NEXT_PUBLIC_SITE_URL}/hack/${slug}`,
+      footer: {
+        text: `This message brought to you by Hackdex`
+      }
+    }
+    await sendDiscordMessageEmbed(process.env.DISCORD_WEBHOOK_ADMIN_URL, [
+      embed,
+    ]);
+  }
+
   return { ok: true, slug } as const;
 }
 
