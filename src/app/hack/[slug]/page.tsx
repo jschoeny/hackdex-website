@@ -12,6 +12,7 @@ import PokeCommunityIcon from "@/components/Icons/PokeCommunityIcon";
 import { createClient, createServiceClient } from "@/utils/supabase/server";
 import HackOptionsMenu from "@/components/Hack/HackOptionsMenu";
 import DownloadsBadge from "@/components/Hack/DownloadsBadge";
+import HackShareButton from "@/components/Hack/HackShareButton";
 import type { CreativeWork, WithContext } from "schema-dts";
 import serialize from "serialize-javascript";
 import { headers } from "next/headers";
@@ -339,6 +340,11 @@ export default async function HackDetail({ params }: HackDetailProps) {
               <span className="rounded-full bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-foreground/85 ring-1 ring-[var(--border)]">
                 {patchVersion || "Pre-release"}
               </span>
+              {!isArchive && (
+                <div className="inline-flex ml-auto md:hidden">
+                  <DownloadsBadge slug={hack.slug} initialCount={hack.downloads} />
+                </div>
+              )}
             </div>
             <p className="mt-1 text-[15px] text-foreground/70">By {isArchive ? (hack.original_author || "Unknown") : author}</p>
             <p className="mt-2 text-sm text-foreground/75">{hack.summary}</p>
@@ -352,7 +358,12 @@ export default async function HackDetail({ params }: HackDetailProps) {
               ))}
             </div>
             <div className="flex items-center justify-end gap-2 self-end md:self-auto lg:min-w-[260px]">
-              {!isArchive && <DownloadsBadge slug={hack.slug} initialCount={hack.downloads} />}
+              {!isArchive && (
+                <div className="hidden md:inline-flex mr-2">
+                  <DownloadsBadge slug={hack.slug} initialCount={hack.downloads} />
+                </div>
+              )}
+              <HackShareButton title={hack.title} url={pageUrl} author={hack.original_author || profile?.username || null} />
               <HackOptionsMenu slug={hack.slug} canEdit={canEdit || isAdmin} canUploadPatch={canUploadPatch || isAdmin}>
                 {isAdmin && !hack.approved && (
                   <MenuItem

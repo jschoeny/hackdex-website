@@ -37,30 +37,6 @@ export default function HackOptionsMenu({
         >
           <MenuItem
             as="button"
-            onClick={async () => {
-              try {
-                const url = window.location.href;
-                const title = document?.title || "Check this out";
-                if (navigator.share) {
-                  await navigator.share({ title, url });
-                } else {
-                  if (navigator.clipboard?.writeText) {
-                    await navigator.clipboard.writeText(url);
-                    alert("Link copied to clipboard");
-                  }
-                }
-              } catch (e) {
-                // Ignore if user cancels share; otherwise log
-                if (!(e instanceof Error) || e.name !== "AbortError") {
-                  console.error(e);
-                }
-              }
-            }}
-            className="block w-full px-3 py-2 text-left text-sm data-focus:bg-black/5 dark:data-focus:bg-white/10">
-            Share
-          </MenuItem>
-          <MenuItem
-            as="button"
             onClick={() => {
               setShowReportModal(true);
             }}
