@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Confirm your email</title>
+  <style>
+    /* Basic email reset */
+    body,
+    table,
+    td,
+    a {
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+    }
+
+    img {
+      -ms-interpolation-mode: bicubic;
+      border: 0;
+      outline: none;
+      text-decoration: none;
+    }
+
+    table {
+      border-collapse: collapse;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Layout */
+    .wrapper {
+      width: 100%;
+      padding: 24px 0;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 640px;
+      margin: 0 auto;
+      background: #ffffff;
+      border: 1px solid #e5e5e5;
+    }
+
+    .header {
+      padding: 24px;
+      background: #fafafa;
+      border-bottom: 1px solid #e5e5e5;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .logo {
+      width: 32px;
+      height: 32px;
+      display: block;
+    }
+
+    .brand {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      font-size: 20px;
+      margin: 0;
+      color: #171717;
+    }
+
+    .content {
+      padding: 24px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #171717;
+    }
+
+    .heading {
+      margin: 0 0 8px 0;
+      font-size: 20px;
+      line-height: 1.3;
+      font-weight: 700;
+    }
+
+    .muted {
+      color: #4b5563;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .card {
+      background: #ffffff;
+      border: 1px solid #e5e5e5;
+      border-radius: 10px;
+      padding: 16px;
+    }
+
+    .spacer {
+      height: 12px;
+    }
+
+    /* Button */
+    .btn {
+      display: inline-block;
+      padding: 12px 18px;
+      border-radius: 999px;
+      text-decoration: none;
+      color: #ffffff;
+      font-weight: 600;
+      font-size: 14px;
+      background: #f43f5e;
+    }
+
+    .code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      background: #fafafa;
+      border: 1px solid #ededed;
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: block;
+      color: #0a0a0a;
+      word-break: break-all;
+    }
+
+    /* Footer */
+    .footer {
+      padding: 16px 24px 24px 24px;
+      text-align: center;
+      color: #6b7280;
+      font-size: 12px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrapper">
+    <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#0a0a0a">
+      <tr>
+        <td align="center" style="padding: 0 16px;">
+          <table role="presentation" class="container" width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#ffffff">
+            <tr>
+              <td class="header">
+                <div class="logo-container">
+                  <svg width="32" height="32" viewBox="0 0 134 134" version="1.1"
+                    xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve"
+                    xmlns:serif="http://www.serif.com/"
+                    style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
+                    <rect id="Artboard1" x="0" y="0" width="133.333" height="133.333" style="fill:none;" />
+                    <clipPath id="_clip1">
+                      <rect id="Artboard11" serif:id="Artboard1" x="0" y="0" width="133.333" height="133.333" />
+                    </clipPath>
+                    <g clip-path="url(#_clip1)">
+                      <path
+                        d="M125,32.833c0,-13.522 -10.978,-24.5 -24.5,-24.5l-67.667,0c-13.522,0 -24.5,10.978 -24.5,24.5l0,67.667c0,13.522 10.978,24.5 24.5,24.5l67.667,0c13.522,0 24.5,-10.978 24.5,-24.5l0,-67.667Z"
+                        style="fill:url(#_Linear2);" />
+                      <g>
+                        <path
+                          d="M85.582,55.832c-3.353,-1.18 -7.191,-0.594 -10.062,1.758l-3.351,-3.351c-0.61,-0.61 -1.6,-0.61 -2.209,-0l-2.21,2.21c-0.61,0.609 -0.61,1.599 -0,2.209l3.314,3.315l-4.419,4.419l-3.315,-3.314c-0.609,-0.61 -1.6,-0.61 -2.209,-0l-2.21,2.209c-0.61,0.61 -0.61,1.6 0,2.21l3.315,3.315l-4.42,4.419l-3.314,-3.314c-0.61,-0.61 -1.6,-0.61 -2.21,-0l-2.21,2.209c-0.61,0.61 -0.61,1.6 0,2.21l3.351,3.351c-2.351,2.871 -2.937,6.709 -1.757,10.061l-2.561,2.561c-0.61,0.61 -0.61,1.6 -0,2.21l2.209,2.21c0.61,0.61 1.6,0.61 2.21,-0l1.841,-1.842l3.914,3.914l-1.841,1.842c-0.61,0.61 -0.61,1.6 -0,2.209l2.21,2.21c0.609,0.61 1.599,0.61 2.209,0l1.842,-1.841l3.914,3.914l-1.842,1.841c-0.61,0.61 -0.61,1.6 0,2.21l2.21,2.209c0.61,0.61 1.6,0.61 2.21,0l2.561,-2.561c3.352,1.18 7.19,0.594 10.061,-1.757l3.351,3.351c0.61,0.61 1.6,0.61 2.21,-0l2.209,-2.21c0.61,-0.61 0.61,-1.6 0,-2.21l-3.314,-3.314l4.419,-4.42l3.315,3.315c0.61,0.61 1.6,0.61 2.21,-0l2.209,-2.21c0.61,-0.609 0.61,-1.6 0,-2.209l-3.314,-3.315l4.419,-4.419l3.315,3.314c0.61,0.61 1.6,0.61 2.209,0l2.21,-2.21c0.61,-0.609 0.61,-1.599 0,-2.209l-3.351,-3.351c2.352,-2.871 2.938,-6.709 1.758,-10.062l2.561,-2.561c0.61,-0.61 0.61,-1.6 -0,-2.209l-2.21,-2.21c-0.61,-0.61 -1.6,-0.61 -2.21,-0l-1.841,1.841l-3.914,-3.914l1.841,-1.841c0.61,-0.61 0.61,-1.6 0,-2.21l-2.209,-2.209c-0.61,-0.61 -1.6,-0.61 -2.21,-0l-1.841,1.841l-3.914,-3.914l1.841,-1.841c0.61,-0.61 0.61,-1.6 0,-2.21l-2.21,-2.21c-0.609,-0.61 -1.599,-0.61 -2.209,0l-2.561,2.561Zm0.066,10.413c-1.951,-1.951 -5.119,-1.951 -7.071,-0l-16.499,16.499c-1.951,1.951 -1.951,5.12 0,7.071l10.607,10.607c1.951,1.951 5.12,1.951 7.071,-0l16.499,-16.499c1.951,-1.952 1.951,-5.12 0,-7.071l-10.607,-10.607Z"
+                          style="fill:#faf0f2;" />
+                      </g>
+                      <g>
+                        <path
+                          d="M18.274,119.294c-0.576,0.391 -0.918,1.045 -0.912,1.741c0.006,0.696 0.36,1.343 0.942,1.725c4.177,2.733 9.169,4.323 14.529,4.323c0,0 10.418,0 10.418,0c0.44,0 0.867,-0.138 1.223,-0.396c5.472,-3.967 9.083,-6.24 15.109,-11.229c0.452,-0.374 0.725,-0.922 0.753,-1.507c0.027,-0.586 -0.194,-1.157 -0.608,-1.571l-12.032,-12.032c-0.753,-0.753 -1.953,-0.817 -2.781,-0.149c-10.179,8.209 -18.009,13.224 -26.641,19.095Zm103.735,-102.078c-0.402,-0.552 -1.048,-0.872 -1.73,-0.857c-0.682,0.014 -1.314,0.362 -1.691,0.931c-6.435,9.694 -12.659,19.52 -22.556,31.791c-0.668,0.829 -0.604,2.028 0.149,2.781l12.032,12.032c0.415,0.415 0.985,0.636 1.571,0.608c0.586,-0.027 1.133,-0.3 1.507,-0.752c6.826,-8.245 10.45,-13.853 15.421,-21.02c0.242,-0.349 0.371,-0.763 0.371,-1.188l0,-8.709c0,-5.834 -1.883,-11.232 -5.074,-15.617Z"
+                          style="fill:#faf0f2;" />
+                      </g>
+                    </g>
+                    <defs>
+                      <linearGradient id="_Linear2" x1="0" y1="0" x2="1" y2="0" gradientUnits="userSpaceOnUse"
+                        gradientTransform="matrix(123.81,123.81,-123.81,123.81,4.7619,4.7619)">
+                        <stop offset="0" style="stop-color:#f43f5e;stop-opacity:1" />
+                        <stop offset="1" style="stop-color:#be123c;stop-opacity:1" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                  <h1 class="brand">Hackdex</h1>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td class="content">
+                <h2 class="heading">Confirm your email</h2>
+                <p class="muted">Thanks for signing up! Please confirm your email address by clicking the button below
+                  to activate your account.</p>
+                <div class="spacer"></div>
+                <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td>
+                      <a class="btn" href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email"
+                        target="_blank" rel="noopener">Confirm email</a>
+                    </td>
+                  </tr>
+                </table>
+                <div class="spacer"></div>
+                <div class="card">
+                  <p class="muted" style="margin:0 0 8px 0;">If the button doesn't work, copy and paste this link into
+                    your browser:</p>
+                  <span class="code">{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=email</span>
+                </div>
+                <div class="spacer"></div>
+                <p class="muted" style="margin:0;">This link will expire in 24 hours. If you didn't create an account,
+                  you can safely ignore this email.</p>
+              </td>
+            </tr>
+            <tr>
+              <td class="footer">
+                © 2025 Hackdex. All rights reserved. Please do not reply to this message.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </div>
+</body>
+
+</html>
