@@ -2,6 +2,7 @@ import SubmitPageClient from "@/components/Submit/SubmitPageClient";
 import { createClient } from "@/utils/supabase/server";
 import SubmitAuthOverlay from "@/components/Submit/SubmitAuthOverlay";
 import { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   alternates: {
@@ -31,6 +32,19 @@ export default async function SubmitPage() {
     <div className="mx-auto max-w-[900px] px-6 py-10 w-full">
       <h1 className="text-3xl font-bold tracking-tight">Submit your ROM hack</h1>
       <p className="mt-2 text-[15px] text-foreground/80">Share your hack so others can discover and play it.</p>
+      <div className="mt-2 text-sm border border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/60 dark:text-amber-100 p-4 rounded-md">
+        <p className="font-bold mb-2">Important:</p>
+        <div className="flex flex-col gap-1">
+          <p className="text-amber-950/80 dark:text-amber-50/80">
+            Hackdex will only accept submissions for hacks that <span className="text-amber-950 dark:text-amber-50 font-bold">you own</span>.
+            If it is not your hack, try reaching out to the original creator to see if they are interested in submitting it themselves.
+            All hacks must also comply with the <Link href="/terms" className="text-amber-950 dark:text-amber-50 font-bold hover:underline">Terms of Service</Link>.
+          </p>
+          <p className="text-amber-950/80 dark:text-amber-50/80">
+            If you attempt to circumvent this policy, <span className="text-amber-950 dark:text-amber-50 font-bold italic">your submission will be rejected</span> and your account may be banned.
+          </p>
+        </div>
+      </div>
       <div className="mt-8">
         <SubmitPageClient canCreateArchive={canCreateArchive} dummy={!user || needsInitialSetup} />
       </div>

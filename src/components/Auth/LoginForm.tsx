@@ -3,6 +3,7 @@
 import React, { useActionState, useEffect} from "react";
 import Link from "next/link";
 import { FiEye, FiEyeOff } from "react-icons/fi";
+import { Turnstile } from "next-turnstile";
 import { AuthActionState, login } from "@/app/login/actions";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthContext } from "@/contexts/AuthContext";
@@ -13,6 +14,9 @@ export default function LoginForm() {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
+  const [turnstileToken, setTurnstileToken] = React.useState<string | undefined>(undefined);
+  const [turnstileError, setTurnstileError] = React.useState<string | null>(null);
+  const [turnstileKey, setTurnstileKey] = React.useState(0);
   const searchParams = useSearchParams();
   const urlError = searchParams.get("error");
   const [state, formAction] = useActionState<AuthActionState, FormData>(login, null);
@@ -25,6 +29,16 @@ export default function LoginForm() {
   const emailValid = /.+@.+\..+/.test(email);
   const passwordValid = password.length > 1;
   const isValid = emailValid && passwordValid;
+
+  // Reset Turnstile token and widget on error to allow retry
+  useEffect(() => {
+    if (state?.error && state.error !== null) {
+      setTurnstileToken(undefined);
+      setTurnstileError(null);
+      // Force Turnstile widget to reset by changing key
+      setTurnstileKey((prev) => prev + 1);
+    }
+  }, [state?.error]);
 
   // Update context and immediately redirect after successful login
   useEffect(() => {
@@ -53,6 +67,11 @@ export default function LoginForm() {
       {(errorMessage) && (
         <div className="rounded-md bg-red-500/10 ring-1 ring-red-600/40 px-3 py-2 text-sm text-red-300">
           {errorMessage}
+        </div>
+      )}
+      {turnstileError && (
+        <div className="rounded-md bg-red-500/10 ring-1 ring-red-600/40 px-3 py-2 text-sm text-red-300">
+          {turnstileError}
         </div>
       )}
       <div className="grid gap-2">
@@ -117,10 +136,27 @@ export default function LoginForm() {
         ) : (
           <div className="h-3" />
         )}
+        <Turnstile
+          key={turnstileKey}
+          siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+          onVerify={(token) => {
+            setTurnstileToken(token);
+            setTurnstileError(null);
+          }}
+          onError={(error) => {
+            setTurnstileToken(undefined);
+            setTurnstileError("Verification failed. Please try again.");
+            console.error("Turnstile error:", error);
+          }}
+          onExpire={() => {
+            setTurnstileToken(undefined);
+          }}
+          theme="auto"
+        />
         <button
           type="submit"
           formAction={formAction}
-          disabled={!isValid}
+          disabled={!isValid || !turnstileToken}
           className="shine-wrap btn-premium h-11 min-w-[7.5rem] text-sm font-semibold dark:disabled:opacity-70 disabled:cursor-not-allowed disabled:[box-shadow:0_0_0_1px_var(--border)]"
         >
           <span>Log in</span>

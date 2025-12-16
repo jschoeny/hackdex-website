@@ -11,10 +11,10 @@ import { MdTune } from "react-icons/md";
 import { BsSdCardFill } from "react-icons/bs";
 import { CATEGORY_ICONS } from "@/components/Icons/tagCategories";
 import { useBaseRoms } from "@/contexts/BaseRomContext";
-import { sortOrderedTags, OrderedTag } from "@/utils/format";
-import { getCoverSignedUrls } from "@/app/hack/actions";
+import { sortOrderedTags, OrderedTag, getCoverUrls } from "@/utils/format";
 import { HackCardAttributes } from "@/components/HackCard";
 
+const HACKS_PER_PAGE = 9;
 
 export default function DiscoverBrowser() {
   const supabase = createClient();
@@ -28,6 +28,8 @@ export default function DiscoverBrowser() {
   const [loadingHacks, setLoadingHacks] = React.useState(true);
   const [loadingTags, setLoadingTags] = React.useState(true);
   const [onlyReady, setOnlyReady] = React.useState(false);
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const listRef = React.useRef<HTMLDivElement | null>(null);
 
   const { cached, statuses, countReady } = useBaseRoms();
   const readyBaseRomIds = React.useMemo(() => {
@@ -42,6 +44,11 @@ export default function DiscoverBrowser() {
     } catch {}
     return set;
   }, [cached, statuses]);
+
+  React.useEffect(() => {
+    // Reset to first page when filters or sort change
+    setCurrentPage(1);
+  }, [query, selectedTags, selectedBaseRoms, onlyReady, sort]);
 
   React.useEffect(() => {
     const run = async () => {
@@ -74,7 +81,7 @@ export default function DiscoverBrowser() {
       const coversBySlug = new Map<string, string[]>();
       if (coverRows && coverRows.length > 0) {
         const coverKeys = coverRows.map(c => c.url);
-        const urls = await getCoverSignedUrls(coverKeys);
+        const urls = getCoverUrls(coverKeys);
         // Map: storage object url -> signedUrl
         const urlToSignedUrl = new Map<string, string>();
         coverKeys.forEach((key, idx) => {
@@ -104,19 +111,36 @@ export default function DiscoverBrowser() {
         tagsBySlug.set(r.hack_slug, arr);
       });
 
-      let mappedVersions = new Map<string, string>();
-      await Promise.all((rows || []).map(async (r) => {
-        if (r.current_patch) {
-          const { data: currentPatch } = await supabase
-            .from("patches")
-            .select("version")
-            .eq("id", r.current_patch)
-            .maybeSingle();
-          mappedVersions.set(r.slug, currentPatch?.version || "Pre-release");
+      const patchIds = Array.from(
+        new Set(
+          (rows || [])
+            .map((r: any) => r.current_patch as number | null)
+            .filter((id): id is number => typeof id === "number")
+        )
+      );
+
+      const versionsByPatchId = new Map<number, string>();
+      if (patchIds.length > 0) {
+        const { data: patchRows } = await supabase
+          .from("patches")
+          .select("id,version")
+          .in("id", patchIds);
+        (patchRows || []).forEach((p: any) => {
+          if (typeof p.id === "number") {
+            versionsByPatchId.set(p.id, p.version || "Pre-release");
+          }
+        });
+      }
+
+      const mappedVersions = new Map<string, string>();
+      (rows || []).forEach((r: any) => {
+        if (typeof r.current_patch === "number") {
+          const version = versionsByPatchId.get(r.current_patch) || "Pre-release";
+          mappedVersions.set(r.slug, version);
         } else {
           mappedVersions.set(r.slug, r.original_author ? "Archive" : "Pre-release");
         }
-      }));
+      });
       // Fetch all tags with category to build UI groups
       const { data: allTagRows } = await supabase
         .from("tags")
@@ -196,6 +220,55 @@ export default function DiscoverBrowser() {
     }
     return out;
   }, [hacks, query, selectedTags, selectedBaseRoms, onlyReady, readyBaseRomIds]);
+
+  const totalPages = React.useMemo(
+    () => Math.max(1, Math.ceil(filtered.length / HACKS_PER_PAGE)),
+    [filtered.length]
+  );
+
+  React.useEffect(() => {
+    // Clamp current page if the number of results shrinks
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const paginationRange = React.useMemo(() => {
+    const startIndex = (currentPage - 1) * HACKS_PER_PAGE;
+    const endIndex = Math.min(filtered.length, startIndex + HACKS_PER_PAGE);
+    return { startIndex, endIndex };
+  }, [currentPage, filtered.length]);
+
+  const paginated = React.useMemo(
+    () => filtered.slice(paginationRange.startIndex, paginationRange.endIndex),
+    [filtered, paginationRange.startIndex, paginationRange.endIndex]
+  );
+
+  const scrollToListTopOnMobile = React.useCallback(() => {
+    if (typeof window === "undefined" || !listRef.current) return;
+    // Only auto-scroll on small screens so desktop users aren't jolted
+    if (window.innerWidth < 640) {
+      const rect = listRef.current.getBoundingClientRect();
+      const headerOffset = 72; // approximate navbar  with padding
+      const targetY = Math.max(0, rect.top + window.scrollY - headerOffset);
+      window.scrollTo({ top: targetY, behavior: "smooth" });
+    }
+  }, []);
+
+  const changePage = React.useCallback(
+    (nextPage: number) => {
+      setCurrentPage((prev) => {
+        const clamped = Math.min(Math.max(1, nextPage), totalPages);
+        // Only scroll when the page actually changes
+        if (clamped !== prev) {
+          // Defer scroll until after React has applied the state update
+          setTimeout(scrollToListTopOnMobile, 0);
+        }
+        return clamped;
+      });
+    },
+    [scrollToListTopOnMobile, totalPages]
+  );
 
   function toggleTag(name: string) {
     setSelectedTags((prev) => (prev.includes(name) ? prev.filter((t) => t !== name) : [...prev, name]));
@@ -376,11 +449,70 @@ export default function DiscoverBrowser() {
           </div>
         </div>
       ) : (
-        <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((hack) => (
-            <HackCard key={hack.slug} hack={hack} />
-          ))}
-        </div>
+        <>
+          <div
+            ref={listRef}
+            className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
+          >
+            {paginated.map((hack) => (
+              <HackCard key={hack.slug} hack={hack} />
+            ))}
+          </div>
+          {totalPages > 1 && (
+            <div className="mt-6 flex flex-col items-center gap-3">
+              <div className="text-xs text-foreground/70 text-center">
+                Showing {paginationRange.startIndex + 1}-{paginationRange.endIndex} of {filtered.length} hacks
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => changePage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className={`h-9 rounded-full px-3 text-sm ring-1 ring-inset transition-colors min-w-[90px] ${
+                    currentPage === 1
+                      ? "cursor-not-allowed bg-[var(--surface-2)] text-foreground/40 ring-[var(--border)]"
+                      : "bg-[var(--surface-2)] text-foreground/80 ring-[var(--border)] hover:bg-black/5 dark:hover:bg-white/10"
+                  }`}
+                >
+                  Previous
+                </button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }).map((_, i) => {
+                    const page = i + 1;
+                    const isActive = page === currentPage;
+                    return (
+                      <button
+                        key={page}
+                        type="button"
+                        onClick={() => changePage(page)}
+                        className={`h-8 min-w-8 rounded-full px-2 text-xs font-medium ring-1 ring-inset transition-colors ${
+                          isActive
+                            ? "bg-[var(--accent)] text-[var(--foreground)] ring-[var(--accent)]/60"
+                            : "bg-[var(--surface-2)] text-foreground/70 ring-[var(--border)] hover:bg-black/5 dark:hover:bg-white/10"
+                        }`}
+                        aria-current={isActive ? "page" : undefined}
+                      >
+                        {page}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => changePage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className={`h-9 rounded-full px-3 text-sm ring-1 ring-inset transition-colors min-w-[90px] ${
+                    currentPage === totalPages
+                      ? "cursor-not-allowed bg-[var(--surface-2)] text-foreground/40 ring-[var(--border)]"
+                      : "bg-[var(--surface-2)] text-foreground/80 ring-[var(--border)] hover:bg-black/5 dark:hover:bg-white/10"
+                  }`}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

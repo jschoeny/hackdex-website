@@ -16,7 +16,7 @@ Hackdex is a community hub for discovering and sharing Pokémon romhack patches.
 - **Discover**: curated hacks with screenshots, tags, versions, and summaries
 - **Submit**: metadata, screenshots, social links, and a BPS patch file
 - **Patch in the browser**: Powered by [RomPatcher.js](https://github.com/marcrobledo/RomPatcher.js); linked base roms stay on the user's device
-- **Safe delivery**: short-lived signed URLs for assets and downloads; no rom storage required
+- **Safe delivery**: public urls for cover images, short-lived signed URLs for patch downloads and other assets; no rom storage required
 
 ## Tech stack
 
@@ -28,7 +28,7 @@ Hackdex is a community hub for discovering and sharing Pokémon romhack patches.
 ## High-level architecture
 
 - UI: Next.js App Router with a mix of server and client components
-- Data: Supabase tables for hacks, tags, covers, patches; signed URLs for `hack-covers`
+- Data: Supabase tables for hacks, tags, patches; cover images stored in `covers` S3-compatible bucket
 - Patches: stored in an S3-compatible bucket `patches`; downloads use short-lived signed URLs via an API route
 - Auth: Supabase SSR helpers manage cookies; client SDK for browser calls
 
@@ -66,6 +66,8 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 NEXT_PUBLIC_SITE_URL=
 NEXT_PUBLIC_SITE_DOMAIN=
 
+NEXT_PUBLIC_HACK_COVERS_DOMAIN=
+
 S3_ENDPOINT=
 S3_PORT=
 S3_ACCESS_KEY_ID=
@@ -84,12 +86,15 @@ Typical flow:
 1) Initialize and start services using the CLI
 2) Note the printed API URL and publishable key; set them in `.env.local` as shown above
 3) Apply this repository’s migrations in `supabase/migrations`
-4) Create a Supabase Storage bucket named `hack-covers` (private is fine; the app uses signed URLs)
+4) Create a Supabase Storage bucket named `hack-covers` and make it public. Set the `NEXT_PUBLIC_HACK_COVERS_DOMAIN` environment variable to the public URL of your covers bucket (e.g., `https://your-project.supabase.co/storage/v1/object/public/hack-covers`)
 
-### S3‑compatible storage for patches
+### S3‑compatible storage for patches and covers
 
-- Create a bucket named `patches`
+- Create a bucket named `patches` and a public bucket named `covers`
 - Point the `S3_*` environment variables to your S3 endpoint (Minio locally or your vendor)
+- Set the `COVERS_BUCKET` environment variable to the name of your covers bucket (e.g., `covers`)
+- Set the `PATCHES_BUCKET` environment variable to the name of your patches bucket (e.g., `patches`)
+- Set the `NEXT_PUBLIC_HACK_COVERS_DOMAIN` environment variable to the public URL of your covers bucket (e.g., `http://localhost:9000/covers`)
 
 ### Install & run
 

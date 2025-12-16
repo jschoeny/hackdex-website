@@ -4,8 +4,7 @@ import { FaArrowRightLong } from "react-icons/fa6";
 import { createClient } from "@/utils/supabase/server";
 import HackCard from "@/components/HackCard";
 import Button from "@/components/Button";
-import { sortOrderedTags } from "@/utils/format";
-import { getCoverSignedUrls } from "@/app/hack/actions";
+import { sortOrderedTags, getCoverUrls } from "@/utils/format";
 import { HackCardAttributes } from "@/components/HackCard";
 
 export const metadata: Metadata = {
@@ -42,7 +41,7 @@ export default async function Home() {
 
     const coversBySlug = new Map<string, string[]>();
     if (coverRows && coverRows.length > 0) {      const coverKeys = coverRows.map((c) => c.url);
-      const signedUrls = await getCoverSignedUrls(coverKeys);
+      const signedUrls = getCoverUrls(coverKeys);
       const urlToSignedUrl = new Map<string, string>();
       coverKeys.forEach((key, idx) => {
         urlToSignedUrl.set(key, signedUrls[idx]);

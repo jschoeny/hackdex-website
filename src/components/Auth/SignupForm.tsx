@@ -3,6 +3,7 @@
 import React, { useActionState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FiEye, FiEyeOff } from "react-icons/fi";
+import { Turnstile } from "next-turnstile";
 import { AuthActionState, signup } from "@/app/signup/actions";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { validateEmail, validatePassword } from "@/utils/auth";
@@ -14,14 +15,27 @@ export default function SignupForm() {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [confirm, setConfirm] = React.useState("");
-  const [invite, setInvite] = React.useState<string>("");
+  const [acceptedTerms, setAcceptedTerms] = React.useState(false);
   const [showPassword, setShowPassword] = React.useState(false);
   const [emailError, setEmailError] = React.useState<string | null>(null);
   const [passwordError, setPasswordError] = React.useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = React.useState<string | undefined>(undefined);
+  const [turnstileError, setTurnstileError] = React.useState<string | null>(null);
+  const [turnstileKey, setTurnstileKey] = React.useState(0);
 
   const [state, formAction, isPending] = useActionState<AuthActionState, FormData>(signup, { error: null });
   const passwordsMatch = password === confirm;
-  const isValid = !emailError && !passwordError && passwordsMatch && Boolean(invite);
+  const isValid = !emailError && !passwordError && passwordsMatch && acceptedTerms;
+
+  // Reset Turnstile token and widget on error to allow retry
+  useEffect(() => {
+    if (state?.error && !isPending) {
+      setTurnstileToken(undefined);
+      setTurnstileError(null);
+      // Force Turnstile widget to reset by changing key
+      setTurnstileKey((prev) => prev + 1);
+    }
+  }, [state?.error, isPending]);
 
   useEffect(() => {
     const { error } = validateEmail(email);
@@ -34,13 +48,6 @@ export default function SignupForm() {
   }, [password]);
 
   const redirectTo = searchParams.get("redirectTo");
-
-  useEffect(() => {
-    const inviteFromParams = searchParams.get("invite") || "";
-    if (inviteFromParams) {
-      setInvite(inviteFromParams);
-    }
-  }, []);
 
   // Redirect if user already authenticated (e.g., opened signup while logged in)
   useEffect(() => {
@@ -60,27 +67,11 @@ export default function SignupForm() {
           {state?.error}
         </div>
       )}
-      <div className="grid gap-2">
-        <label htmlFor="inviteCode" className="text-sm text-foreground/80">Invite code</label>
-        <input
-          id="inviteCode"
-          name="inviteCode"
-          type="text"
-          value={invite}
-          onChange={(e) => setInvite(e.target.value)}
-          placeholder="Enter your invite code"
-          className={`h-11 rounded-md bg-[var(--surface-2)] px-3 text-sm ring-1 ring-inset ring-[var(--border)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)] ${
-            invite ? "bg-[var(--surface-2)] ring-[var(--border)]" : "bg-[var(--surface-2)] ring-[var(--border)]"
-          }`}
-          required
-          inputMode="text"
-          autoComplete="off"
-          spellCheck={false}
-        />
-        {!invite && (
-          <span className="text-xs text-foreground/60">An invite code is required to create an account.</span>
-        )}
-      </div>
+      {turnstileError && (
+        <div className="rounded-md bg-red-500/10 ring-1 ring-red-600/40 px-3 py-2 text-sm text-red-300">
+          {turnstileError}
+        </div>
+      )}
       <div className="grid gap-2">
         <label htmlFor="email" className="text-sm text-foreground/80">Email</label>
         <input
@@ -166,11 +157,51 @@ export default function SignupForm() {
         )}
       </div>
 
-      <div className="flex flex-col items-center gap-3">
+      <div className="flex items-center gap-2 text-xs text-foreground/80">
+        <input
+          id="accept-terms"
+          name="acceptTerms"
+          type="checkbox"
+          checked={acceptedTerms}
+          onChange={(e) => setAcceptedTerms(e.target.checked)}
+          className="mt-0.5 h-4 w-4 rounded border-[var(--border)] bg-[var(--surface-2)] text-[var(--ring)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+          required
+        />
+        <label htmlFor="accept-terms" className="space-x-1">
+          <span>I agree to the</span>
+          <a
+            href="/terms"
+            className="font-medium text-sky-500 hover:text-sky-400 underline underline-offset-2"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Terms of Service
+          </a>
+        </label>
+      </div>
+
+      <div className="flex flex-col items-center gap-3 mt-2">
+        <Turnstile
+          key={turnstileKey}
+          siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+          onVerify={(token) => {
+            setTurnstileToken(token);
+            setTurnstileError(null);
+          }}
+          onError={(error) => {
+            setTurnstileToken(undefined);
+            setTurnstileError("Verification failed. Please try again.");
+            console.error("Turnstile error:", error);
+          }}
+          onExpire={() => {
+            setTurnstileToken(undefined);
+          }}
+          theme="auto"
+        />
         <button
           type="submit"
           formAction={formAction}
-          disabled={!isValid || isPending}
+          disabled={!isValid || isPending || !turnstileToken}
           className="shine-wrap btn-premium h-11 min-w-[7.5rem] text-sm font-semibold hover:cursor-pointer dark:disabled:opacity-70 disabled:cursor-not-allowed disabled:[box-shadow:0_0_0_1px_var(--border)]"
         >
           <span>Sign up</span>

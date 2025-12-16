@@ -55,7 +55,7 @@ export async function setupProfile(username: string): Promise<UpdateState> {
     await sendDiscordMessageEmbed(process.env.DISCORD_WEBHOOK_ADMIN_URL, [
       {
         title: 'New Profile Setup',
-        description: `A new user (\`${user.id}\`) has setup their profile with the username: \`@${username}\``,
+        description: `A new user (\`${user.id}\`) has created an account with the username: \`@${username}\``,
         color: 0x40f56a,
         footer: {
           text: 'This message brought to you by Hackdex'

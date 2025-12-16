@@ -436,8 +436,12 @@ export default function HackSubmitForm({
         fd.set('permission_from', permissionFrom);
       }
 
+      console.log('[HackSubmitForm] Preparing submission...');
+
       const prepared = await prepareSubmission(fd);
       if (!prepared.ok) throw new Error(prepared.error || 'Failed to prepare');
+
+      console.log('[HackSubmitForm] Uploading covers...');
 
       const uploadedCoverUrls = await uploadCovers(prepared.slug);
 
@@ -453,10 +457,12 @@ export default function HackSubmitForm({
         } catch {}
         window.location.href = `/hack/${prepared.slug}`;
       } else {
+        console.log('[HackSubmitForm] Getting patch upload URL...');
         const presigned = await presignPatchAndSaveCovers({ slug: prepared.slug, version, coverUrls: uploadedCoverUrls });
         if (!presigned.ok) throw new Error(presigned.error || 'Failed to presign');
 
         if (patchFile) {
+          console.log('[HackSubmitForm] Uploading patch...');
           await fetch(presigned.presignedUrl, { method: 'PUT', body: patchFile, headers: { 'Content-Type': 'application/octet-stream' } });
           const finalized = await confirmPatchUpload({ slug: prepared.slug, objectKey: presigned.objectKey!, version, firstUpload: true });
           if (!finalized.ok) throw new Error(finalized.error || 'Failed to finalize');
@@ -468,6 +474,7 @@ export default function HackSubmitForm({
           } catch {}
           window.location.href = finalized.redirectTo!;
         } else {
+          console.log('[HackSubmitForm] No patch file, redirecting to hack page...');
           try {
             if (draftKey) {
               localStorage.removeItem(draftKey);
@@ -477,8 +484,10 @@ export default function HackSubmitForm({
           window.location.href = `/hack/${prepared.slug}`;
         }
       }
+      console.log('[HackSubmitForm] Submission successful');
     } catch (e: any) {
-      alert(e.message || 'Submission failed');
+      console.log('[HackSubmitForm] Submission failed', e);
+      alert(e.message ? `There was an error during submission:\n\n===\n${e.message}\n===\n\nYour hack might have only been partially submitted. Try going to your dashboard and see if your hack is listed there. If not, please contact support.` : 'Submission failed');
     } finally {
       setSubmitting(false);
     }

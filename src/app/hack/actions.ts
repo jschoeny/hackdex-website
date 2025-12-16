@@ -265,21 +265,6 @@ export async function presignCoverUpload(args: { slug: string; objectKey: string
   return { ok: true, presignedUrl: url } as const;
 }
 
-export async function getCoverSignedUrl(objectKey: string) {
-  const client = getMinioClient();
-  // 5 minutes expiry for viewing
-  const url = await client.presignedGetObject(COVERS_BUCKET, objectKey, 60 * 5);
-  return url;
-}
-
-export async function getCoverSignedUrls(objectKeys: string[]) {
-  const client = getMinioClient();
-  // 5 minutes expiry for viewing
-  const urls = await Promise.all(
-    objectKeys.map(key => client.presignedGetObject(COVERS_BUCKET, key, 60 * 5))
-  );
-  return urls;
-}
 
 export async function approveHack(slug: string) {
   const supabase = await createClient();
@@ -295,7 +280,7 @@ export async function approveHack(slug: string) {
   // Check if hack exists
   const { data: hack, error: hErr } = await supabase
     .from("hacks")
-    .select("slug, approved, title")
+    .select("slug, approved, title, created_by")
     .eq("slug", slug)
     .maybeSingle();
   if (hErr) return { ok: false, error: hErr.message } as const;
@@ -319,8 +304,8 @@ export async function approveHack(slug: string) {
 
   if (updateErr) return { ok: false, error: updateErr.message } as const;
 
-  if (process.env.DISCORD_WEBHOOK_ADMIN_URL) {
-    const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+  if (process.env.DISCORD_WEBHOOK_HACKDEX_HACKS_URL) {
+    const { data: profile } = await supabase.from('profiles').select('*').eq('id', hack.created_by).single();
     const displayName = profile?.username ? `@${profile.username}` : user.id;
     const embed: APIEmbed = {
       title: `:tada: ${hack.title} :tada:`,
@@ -331,7 +316,7 @@ export async function approveHack(slug: string) {
         text: `This message brought to you by Hackdex`
       }
     }
-    await sendDiscordMessageEmbed(process.env.DISCORD_WEBHOOK_ADMIN_URL, [
+    await sendDiscordMessageEmbed(process.env.DISCORD_WEBHOOK_HACKDEX_HACKS_URL, [
       embed,
     ]);
   }

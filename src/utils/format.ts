@@ -31,3 +31,25 @@ export function slugify(text: string) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
+
+/**
+ * Get the public URL for a single cover image
+ */
+export function getCoverUrl(objectKey: string): string {
+  const domain = process.env.NEXT_PUBLIC_HACK_COVERS_DOMAIN;
+  if (!domain) {
+    throw new Error("NEXT_PUBLIC_HACK_COVERS_DOMAIN environment variable is not set");
+  }
+  return `${domain}/${objectKey}`;
+}
+
+/**
+ * Get public URLs for multiple cover images
+ */
+export function getCoverUrls(objectKeys: string[]): string[] {
+  const domain = process.env.NEXT_PUBLIC_HACK_COVERS_DOMAIN;
+  if (!domain) {
+    throw new Error("NEXT_PUBLIC_HACK_COVERS_DOMAIN environment variable is not set");
+  }
+  return objectKeys.map(key => `${domain}/${key}`);
+}
