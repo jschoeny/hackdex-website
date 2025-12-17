@@ -56,7 +56,7 @@ export default function DiscoverBrowser() {
       setLoadingTags(true);
       let query = supabase
         .from("hacks")
-        .select("slug,title,summary,description,base_rom,downloads,created_by,updated_at,current_patch,original_author");
+        .select("slug,title,summary,description,base_rom,downloads,created_by,updated_at,current_patch,original_author,approved_at");
 
       if (sort === "popular") {
         // When sorting by popularity, always show non-archive hacks first.
@@ -68,7 +68,7 @@ export default function DiscoverBrowser() {
       } else if (sort === "updated") {
         query = query.order("updated_at", { ascending: false });
       } else {
-        query = query.order("created_at", { ascending: false });
+        query = query.order("approved_at", { ascending: false });
       }
 
       const { data: rows } = await query;
