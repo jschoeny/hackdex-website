@@ -58,7 +58,7 @@ export async function generateMetadata({ params }: HackDetailProps): Promise<Met
   .select("username")
   .eq("id", hack.created_by as string)
   .maybeSingle();
-  const author = profile?.username ? `@${profile.username}` : undefined;
+  const author = hack.original_author ? hack.original_author : (profile?.username ? `@${profile.username}` : undefined);
 
   if (!hack.approved) return {
     title: hack.title,
@@ -152,7 +152,7 @@ export default async function HackDetail({ params }: HackDetailProps) {
     .select("username,avatar_url")
     .eq("id", hack.created_by as string)
     .maybeSingle();
-  const author = profile?.username ? `@${profile.username}` : "Unknown";
+  const author = hack.original_author ? hack.original_author : (profile?.username ? `@${profile.username}` : "Unknown");
 
   const {
     data: { user },
@@ -209,7 +209,7 @@ export default async function HackDetail({ params }: HackDetailProps) {
   const baseUrl = siteBase || (proto && host ? `${proto}://${host}` : "");
   const pageUrl = baseUrl ? `${baseUrl}/hack/${hack.slug}` : `/hack/${hack.slug}`;
 
-  const authorName = profile?.username || "Unknown";
+  const authorName = hack.original_author || profile?.username || "Unknown";
 
   const sameAs: string[] = [];
   const social = (hack.social_links as unknown) as { discord?: string; twitter?: string; pokecommunity?: string } | null;
@@ -346,15 +346,15 @@ export default async function HackDetail({ params }: HackDetailProps) {
                 </div>
               )}
             </div>
-            <div className={`mt-1 flex items-center gap-2 ${!isArchive ? "h-[28px]" : ""}`}>
-              {!isArchive && (
+            <div className={`mt-1 flex items-center gap-2 ${!hack.original_author ? "h-[28px]" : ""}`}>
+              {!hack.original_author && (
                 <Avatar
                   uid={hack.created_by as string}
                   url={profile?.avatar_url ?? null}
                   size={28}
                 />
               )}
-              <p className="text-[16px] md:text-[18px] text-foreground/70">By {isArchive ? (hack.original_author || "Unknown") : author}</p>
+              <p className="text-[16px] md:text-[18px] text-foreground/70">By {author}</p>
             </div>
             <p className={`${!isArchive ? "mt-4" : "mt-2"} text-sm text-foreground/75`}>{hack.summary}</p>
           </div>
