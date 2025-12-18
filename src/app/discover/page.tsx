@@ -8,7 +8,18 @@ export const metadata: Metadata = {
   },
 };
 
-export default function DiscoverPage() {
+interface DiscoverPageProps {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function DiscoverPage(props: DiscoverPageProps) {
+  const searchParams = await props.searchParams;
+  const sortParam = searchParams.sort;
+  const sort =
+    typeof sortParam === "string" && ["popular", "new", "updated", "alphabetical"].includes(sortParam)
+      ? sortParam
+      : "popular"; // Default to popular if no sort param is provided
+
   return (
     <div className="mx-auto max-w-screen-2xl px-6 py-10">
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
@@ -20,7 +31,7 @@ export default function DiscoverPage() {
         </div>
       </div>
       <div className="mt-6">
-        <DiscoverBrowser />
+        <DiscoverBrowser initialSort={sort} />
       </div>
     </div>
   );

@@ -13,15 +13,24 @@ import { CATEGORY_ICONS } from "@/components/Icons/tagCategories";
 import { useBaseRoms } from "@/contexts/BaseRomContext";
 import { sortOrderedTags, OrderedTag, getCoverUrls } from "@/utils/format";
 import { HackCardAttributes } from "@/components/HackCard";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 const HACKS_PER_PAGE = 9;
 
-export default function DiscoverBrowser() {
+interface DiscoverBrowserProps {
+  initialSort?: string;
+}
+
+export default function DiscoverBrowser({ initialSort = "popular" }: DiscoverBrowserProps) {
   const supabase = createClient();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [query, setQuery] = React.useState("");
   const [selectedTags, setSelectedTags] = React.useState<string[]>([]);
   const [selectedBaseRoms, setSelectedBaseRoms] = React.useState<string[]>([]);
-  const [sort, setSort] = React.useState("popular");
+  const [sort, setSort] = React.useState(initialSort);
   const [hacks, setHacks] = React.useState<HackCardAttributes[]>([]);
   const [tagGroups, setTagGroups] = React.useState<Record<string, string[]>>({});
   const [ungroupedTags, setUngroupedTags] = React.useState<string[]>([]);
@@ -301,7 +310,16 @@ export default function DiscoverBrowser() {
         </div>
         <select
           value={sort}
-          onChange={(e) => setSort(e.target.value)}
+          onChange={(e) => {
+            const nextSort = e.target.value;
+            setSort(nextSort);
+            // Keep URL query param in sync so refresh/back preserves sort
+            const current = searchParams ? new URLSearchParams(searchParams.toString()) : new URLSearchParams();
+            current.set("sort", nextSort);
+            const queryString = current.toString();
+            const url = queryString ? `${pathname}?${queryString}` : pathname;
+            router.replace(url);
+          }}
           className="h-11 rounded-md bg-[var(--surface-2)] px-3 text-sm ring-1 ring-inset ring-[var(--border)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
         >
           <option value="popular">Most popular</option>
