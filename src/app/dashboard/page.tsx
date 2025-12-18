@@ -14,7 +14,7 @@ export default async function DashboardPage() {
   if (!user) redirect("/login");
 
   const { data: isAdmin } = await supa.rpc("is_admin");
-  let pendingHacks: (HackRow & { created_by: string; creator_username: string | null })[] = [];
+  let pendingHacks: (HackRow & { created_by: string; creator_username: string | null; creator_full_name: string | null })[] = [];
   if (isAdmin) {
     const { data: pendingHacksData } = await supa
       .from("hacks")
@@ -27,15 +27,20 @@ export default async function DashboardPage() {
       const creatorIds = [...new Set(pendingHacksData.map(h => h.created_by as string))];
       const { data: profiles } = await supa
         .from("profiles")
-        .select("id,username")
+        .select("id,username,full_name")
         .in("id", creatorIds);
 
       const usernameById = new Map<string, string | null>();
-      (profiles || []).forEach((p) => usernameById.set(p.id, p.username));
+      const fullNameById = new Map<string, string | null>();
+      (profiles || []).forEach((p) => {
+        usernameById.set(p.id, p.username);
+        fullNameById.set(p.id, p.full_name);
+      });
 
       pendingHacks = pendingHacksData.map((h) => ({
         ...h,
         creator_username: usernameById.get(h.created_by as string) || null,
+        creator_full_name: fullNameById.get(h.created_by as string) || null,
       }));
     }
   }
@@ -130,7 +135,10 @@ export default async function DashboardPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="col-span-3 text-amber-900/90 dark:text-amber-200/90">{creator}</div>
+                      <div className="col-span-3 flex flex-col">
+                        {h.creator_full_name && <div className="text-xs text-amber-900/70 dark:text-amber-200/70">{h.creator_full_name}</div>}
+                        <div className="text-amber-900/90 dark:text-amber-200/90">{creator}</div>
+                      </div>
                       <div className="col-span-4 min-w-0">
                         <div className="flex items-center gap-3">
                           <div className="text-amber-900/90 dark:text-amber-200/90 flex-1">{createdDate}</div>
