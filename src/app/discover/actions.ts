@@ -92,22 +92,43 @@ export async function getDiscoverData(sort: DiscoverSortOption): Promise<Discove
         });
       }
 
-       // Fetch tags
-       const { data: tagRows, error: tagsError } = await supabase
-         .from("hack_tags")
-         .select("hack_slug,order,tags(name,category)")
-         .in("hack_slug", slugs);
-      if (tagsError) throw tagsError;
+       // Fetch tags - paginate to avoid 1000 row limit per query
+       const tagsBySlug = new Map<string, OrderedTag[]>();
+       const BATCH_SIZE = 1000;
+       let offset = 0;
+       let hasMore = true;
 
-      const tagsBySlug = new Map<string, OrderedTag[]>();
-      (tagRows || []).forEach((r: any) => {
-        const arr = tagsBySlug.get(r.hack_slug) || [];
-        arr.push({
-          name: r.tags.name,
-          order: r.order,
-        });
-        tagsBySlug.set(r.hack_slug, arr);
-      });
+       while (hasMore) {
+         const { data: tagRows, error: tagsError } = await supabase
+           .from("hack_tags")
+           .select("hack_slug,order,tags(name,category)")
+           .in("hack_slug", slugs)
+           .range(offset, offset + BATCH_SIZE - 1)
+           .order("hack_slug", { ascending: true });
+
+         if (tagsError) throw tagsError;
+
+         if (!tagRows || tagRows.length === 0) {
+           hasMore = false;
+         } else {
+           tagRows.forEach((r: any) => {
+             if (!r.tags?.name) return;
+             const arr = tagsBySlug.get(r.hack_slug) || [];
+             arr.push({
+               name: r.tags.name,
+               order: r.order,
+             });
+             tagsBySlug.set(r.hack_slug, arr);
+           });
+
+           // If we got fewer rows than the batch size, we've reached the end
+           if (tagRows.length < BATCH_SIZE) {
+             hasMore = false;
+           } else {
+             offset += BATCH_SIZE;
+           }
+         }
+       }
 
       // Fetch patches for version mapping
       const patchIds = Array.from(
