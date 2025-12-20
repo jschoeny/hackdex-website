@@ -115,6 +115,8 @@ export default function VersionList({ patches, currentPatchId, canEdit, hackSlug
         const hasChangelog = patch.changelog && patch.changelog.trim().length > 0;
         const isExpanded = expandedChangelogs.has(patch.id);
         const isEditing = editingChangelog === patch.id;
+        const currentPatch = allPatches.find(p => p.id === currentPatchId);
+        const currentPatchCreatedAt = currentPatch?.created_at || null;
 
         return (
           <div
@@ -199,6 +201,7 @@ export default function VersionList({ patches, currentPatchId, canEdit, hackSlug
                       isCurrent={isCurrent}
                       hackSlug={hackSlug}
                       baseRom={baseRom}
+                      currentPatchCreatedAt={currentPatchCreatedAt}
                       onActionComplete={() => {
                         router.refresh();
                         setEditingChangelog(null);

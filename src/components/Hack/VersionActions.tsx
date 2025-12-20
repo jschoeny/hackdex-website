@@ -40,6 +40,7 @@ interface VersionActionsProps {
   isCurrent: boolean;
   hackSlug: string;
   baseRom: string;
+  currentPatchCreatedAt: string | null;
   onActionComplete: () => void;
 }
 
@@ -48,6 +49,7 @@ export default function VersionActions({
   isCurrent,
   hackSlug,
   baseRom,
+  currentPatchCreatedAt,
   onActionComplete,
 }: VersionActionsProps) {
   const { isLinked, hasPermission, hasCached, importUploadedBlob, ensurePermission, getFileBlob, supported } = useBaseRoms();
@@ -74,6 +76,14 @@ export default function VersionActions({
   const baseRomReady = baseRom && (hasPermission(baseRom) || hasCached(baseRom));
   const baseRomNeedsPermission = baseRom && isLinked(baseRom) && !baseRomReady;
   const baseRomMissing = baseRom && !isLinked(baseRom) && !hasCached(baseRom);
+
+  // Determine if this patch is newer than the current patch
+  const isNewerThanCurrent = currentPatchCreatedAt
+    ? new Date(patch.created_at).getTime() > new Date(currentPatchCreatedAt).getTime()
+    : false;
+
+  // Don't show Rollback if the patch is unpublished and newer than the current version
+  const shouldShowRollback = !isCurrent && !(!patch.published && isNewerThanCurrent);
 
   useEffect(() => {
     if (showDeleteModal || showRestoreModal || showRollbackModal || showPublishModal || showReuploadModal) {
@@ -469,26 +479,26 @@ export default function VersionActions({
           Re-upload
         </button>
 
-        {!isCurrent && (
-          <>
-            <button
-              onClick={() => setShowRollbackModal(true)}
-              className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 text-xs font-medium hover:bg-[var(--surface-3)] transition-colors"
-              title="Rollback to this version"
-            >
-              <FaRotateLeft size={12} />
-              Rollback
-            </button>
+        {shouldShowRollback && (
+          <button
+            onClick={() => setShowRollbackModal(true)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 text-xs font-medium hover:bg-[var(--surface-3)] transition-colors"
+            title="Rollback to this version"
+          >
+            <FaRotateLeft size={12} />
+            Rollback
+          </button>
+        )}
 
-            <button
-              onClick={() => setShowDeleteModal(true)}
-              className="inline-flex items-center gap-1.5 rounded-md border border-red-600/50 bg-red-600/10 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-600/20 transition-colors"
-              title="Archive version"
-            >
-              <FaTrash size={12} />
-              Archive
-            </button>
-          </>
+        {!isCurrent && (
+          <button
+            onClick={() => setShowDeleteModal(true)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-red-600/50 bg-red-600/10 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-600/20 transition-colors"
+            title="Archive version"
+          >
+            <FaTrash size={12} />
+            Archive
+          </button>
         )}
       </div>
 
@@ -534,26 +544,30 @@ export default function VersionActions({
             Re-upload
           </MenuItem>
 
-          {!isCurrent && (
+          {(!isCurrent || shouldShowRollback) && (
             <>
               <MenuSeparator className="my-1 h-px bg-[var(--border)]" />
-              <MenuItem
-                as="button"
-                onClick={() => setShowRollbackModal(true)}
-                className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm data-focus:bg-black/5 dark:data-focus:bg-white/10"
-              >
-                <FaRotateLeft size={14} />
-                Rollback
-              </MenuItem>
+              {shouldShowRollback && (
+                <MenuItem
+                  as="button"
+                  onClick={() => setShowRollbackModal(true)}
+                  className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm data-focus:bg-black/5 dark:data-focus:bg-white/10"
+                >
+                  <FaRotateLeft size={14} />
+                  Rollback
+                </MenuItem>
+              )}
 
-              <MenuItem
-                as="button"
-                onClick={() => setShowDeleteModal(true)}
-                className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-red-600 data-focus:bg-red-600/10"
-              >
-                <FaTrash size={14} />
-                Archive
-              </MenuItem>
+              {!isCurrent && (
+                <MenuItem
+                  as="button"
+                  onClick={() => setShowDeleteModal(true)}
+                  className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-red-600 data-focus:bg-red-600/10"
+                >
+                  <FaTrash size={14} />
+                  Archive
+                </MenuItem>
+              )}
             </>
           )}
         </MenuItems>
