@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { FiMoreVertical } from "react-icons/fi";
+import { FiMoreVertical, FiEdit2, FiBarChart2 } from "react-icons/fi";
+import { TbVersions } from "react-icons/tb";
 import { Menu, MenuButton, MenuItem, MenuItems, MenuSeparator } from "@headlessui/react";
 import ReportModal from "@/components/Hack/ReportModal";
 
@@ -33,19 +34,21 @@ export default function HackOptionsMenu({
 
         <MenuItems
           transition
-          className="absolute right-0 z-10 mt-2 w-40 origin-top-right overflow-hidden rounded-md border border-[var(--border)] bg-[var(--surface-2)] backdrop-blur-lg shadow-lg focus:outline-none transition data-closed:scale-95 data-closed:transform data-closed:opacity-0 data-enter:duration-100 data-enter:ease-out data-leave:duration-75 data-leave:ease-in"
+          className="absolute right-0 z-10 mt-2 w-42 origin-top-right overflow-hidden rounded-md border border-[var(--border)] bg-[var(--surface-2)] backdrop-blur-lg shadow-lg focus:outline-none transition data-closed:scale-95 data-closed:transform data-closed:opacity-0 data-enter:duration-100 data-enter:ease-out data-leave:duration-75 data-leave:ease-in"
         >
           <MenuItem
             as="a"
             href={`/hack/${slug}/changelog`}
-            className="block w-full px-3 py-2 text-left text-sm data-focus:bg-black/5 dark:data-focus:bg-white/10">
+            className="block w-full px-3 py-2 text-left text-sm data-focus:bg-black/5 dark:data-focus:bg-white/10"
+          >
             Changelog
           </MenuItem>
           {!canUploadPatch && (
             <MenuItem
               as="a"
               href={`/hack/${slug}/versions`}
-              className="block w-full px-3 py-2 text-left text-sm data-focus:bg-black/5 dark:data-focus:bg-white/10">
+              className="block w-full px-3 py-2 text-left text-sm data-focus:bg-black/5 dark:data-focus:bg-white/10"
+            >
               Version history
             </MenuItem>
           )}
@@ -55,7 +58,8 @@ export default function HackOptionsMenu({
             onClick={() => {
               setShowReportModal(true);
             }}
-            className="block w-full px-3 py-2 text-left text-sm data-focus:bg-black/5 dark:data-focus:bg-white/10">
+            className="block w-full px-3 py-2 text-left text-sm data-focus:bg-black/5 dark:data-focus:bg-white/10"
+          >
             Report
           </MenuItem>
           {canEdit && <>
@@ -63,13 +67,17 @@ export default function HackOptionsMenu({
             <MenuItem
               as="a"
               href={`/hack/${slug}/stats`}
-              className="block w-full px-3 py-2 text-left text-sm data-focus:bg-black/5 dark:data-focus:bg-white/10">
+              className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm data-focus:bg-black/5 dark:data-focus:bg-white/10"
+            >
+              <FiBarChart2 className="h-4 w-4" />
               Stats
             </MenuItem>
             <MenuItem
               as="a"
               href={`/hack/${slug}/edit`}
-              className="block w-full px-3 py-2 text-left text-sm data-focus:bg-black/5 dark:data-focus:bg-white/10">
+              className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm data-focus:bg-black/5 dark:data-focus:bg-white/10"
+            >
+              <FiEdit2 className="h-4 w-4" />
               Edit
             </MenuItem>
           </>}
@@ -77,7 +85,9 @@ export default function HackOptionsMenu({
             <MenuItem
               as="a"
               href={`/hack/${slug}/versions`}
-              className="block w-full px-3 py-2 text-left text-sm data-focus:bg-black/5 dark:data-focus:bg-white/10">
+              className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm data-focus:bg-black/5 dark:data-focus:bg-white/10"
+            >
+              <TbVersions className="h-4 w-4" />
               Manage versions
             </MenuItem>
           )}
