@@ -1,5 +1,6 @@
 import { baseRoms, PLATFORM_NAMES } from "@/data/baseRoms";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import Gallery from "@/components/Hack/Gallery";
 import HackActions from "@/components/Hack/HackActions";
@@ -7,7 +8,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
 import Image from "next/image";
-import { FaDiscord, FaTwitter, FaTriangleExclamation } from "react-icons/fa6";
+import { FaDiscord, FaTwitter, FaTriangleExclamation, FaArrowUpRightFromSquare } from "react-icons/fa6";
 import PokeCommunityIcon from "@/components/Icons/PokeCommunityIcon";
 import { createClient, createServiceClient } from "@/utils/supabase/server";
 import HackOptionsMenu from "@/components/Hack/HackOptionsMenu";
@@ -153,6 +154,16 @@ export default async function HackDetail({ params }: HackDetailProps) {
     .eq("id", hack.created_by as string)
     .maybeSingle();
   const author = hack.original_author ? hack.original_author : (profile?.username ? `@${profile.username}` : "Unknown");
+
+  // Get other approved hacks by the same author
+  const { data: otherHacks } = await supabase
+    .from("hacks")
+    .select("slug,title,summary")
+    .eq("created_by", hack.created_by)
+    .eq("approved", true)
+    .neq("slug", hack.slug)
+    .order("downloads", { ascending: false })
+    .limit(10);
 
   const {
     data: { user },
@@ -461,6 +472,34 @@ export default async function HackDetail({ params }: HackDetailProps) {
               <div className="relative aspect-square w-full max-h-[340px]">
                 <Image src={hack.box_art} alt={`${hack.title} box art`} fill className="object-contain" unoptimized />
               </div>
+            </div>
+          )}
+          {otherHacks && otherHacks.length > 0 && (
+            <div className="card p-5">
+              <h3 className="text-[15px] font-semibold tracking-tight">More from {author}</h3>
+              <ul className="mt-3 space-y-3 text-sm text-foreground/75">
+                {otherHacks.map((otherHack) => (
+                  <li key={otherHack.slug}>
+                    <Link
+                      href={`/hack/${otherHack.slug}`}
+                      target="_blank"
+                      className="group block hover:text-foreground"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-medium group-hover:underline underline-offset-2">
+                          {otherHack.title}
+                        </span>
+                        <FaArrowUpRightFromSquare className="inline-block shrink-0" size={12} />
+                      </div>
+                      {otherHack.summary && (
+                        <p className="mt-1 text-xs text-foreground/60 group-hover:text-foreground line-clamp-2">
+                          {otherHack.summary}
+                        </p>
+                      )}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
           {isInformationalArchive ? (
