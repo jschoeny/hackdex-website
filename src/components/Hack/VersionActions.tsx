@@ -450,15 +450,6 @@ export default function VersionActions({
     <>
       {/* Desktop: Show buttons */}
       <div className="hidden sm:flex flex-wrap gap-1.5">
-        <button
-          onClick={handleDownload}
-          className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 text-xs font-medium hover:bg-[var(--surface-3)] transition-colors"
-          title="Download"
-        >
-          <FaDownload size={12} />
-          Download
-        </button>
-
         {!patch.published && (
           <button
             onClick={() => setShowPublishModal(true)}
@@ -469,6 +460,15 @@ export default function VersionActions({
             Publish
           </button>
         )}
+
+        <button
+          onClick={handleDownload}
+          className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 text-xs font-medium hover:bg-[var(--surface-3)] transition-colors"
+          title="Download"
+        >
+          <FaDownload size={12} />
+          Download
+        </button>
 
         <button
           onClick={() => setShowReuploadModal(true)}
@@ -515,15 +515,6 @@ export default function VersionActions({
           transition
           className="absolute right-0 z-10 mt-2 w-48 origin-top-right overflow-hidden rounded-md border border-[var(--border)] bg-[var(--surface-2)] backdrop-blur-lg shadow-lg focus:outline-none transition data-closed:scale-95 data-closed:transform data-closed:opacity-0 data-enter:duration-100 data-enter:ease-out data-leave:duration-75 data-leave:ease-in"
         >
-          <MenuItem
-            as="button"
-            onClick={handleDownload}
-            className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm data-focus:bg-black/5 dark:data-focus:bg-white/10"
-          >
-            <FaDownload size={14} />
-            Download
-          </MenuItem>
-
           {!patch.published && (
             <MenuItem
               as="button"
@@ -534,6 +525,15 @@ export default function VersionActions({
               Publish
             </MenuItem>
           )}
+
+          <MenuItem
+            as="button"
+            onClick={handleDownload}
+            className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm data-focus:bg-black/5 dark:data-focus:bg-white/10"
+          >
+            <FaDownload size={14} />
+            Download
+          </MenuItem>
 
           <MenuItem
             as="button"
