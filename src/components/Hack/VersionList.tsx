@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
 import { FaChevronDown, FaChevronUp, FaStar, FaDownload, FaTrash, FaRotateLeft, FaUpload, FaCheck, FaPlus } from "react-icons/fa6";
-import { FiEdit2 } from "react-icons/fi";
+import { FiEdit2, FiEdit, FiX } from "react-icons/fi";
 import VersionActions from "@/components/Hack/VersionActions";
-import { getPatchDownloadUrl } from "@/app/hack/[slug]/actions";
+import { updatePatchChangelog, updatePatchVersion } from "@/app/hack/[slug]/actions";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 
@@ -43,6 +43,7 @@ export default function VersionList({ patches, currentPatchId, canEdit, hackSlug
 
   const [expandedChangelogs, setExpandedChangelogs] = useState<Set<number>>(getInitialExpanded);
   const [editingChangelog, setEditingChangelog] = useState<number | null>(null);
+  const [editingVersion, setEditingVersion] = useState<number | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [archivedPatches, setArchivedPatches] = useState<Patch[]>([]);
   const [loadingArchived, setLoadingArchived] = useState(false);
@@ -124,8 +125,33 @@ export default function VersionList({ patches, currentPatchId, canEdit, hackSlug
               <div className="flex items-start justify-between gap-3 sm:gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2 mb-1.5 sm:mb-2">
-                    <h3 className="text-base sm:text-lg font-semibold">{patch.version}</h3>
-                    {isCurrent && (
+                    {editingVersion === patch.id ? (
+                      <VersionEditor
+                        patchId={patch.id}
+                        initialVersion={patch.version}
+                        hackSlug={hackSlug}
+                        onSave={() => {
+                          setEditingVersion(null);
+                          router.refresh();
+                        }}
+                        onCancel={() => setEditingVersion(null)}
+                      />
+                    ) : (
+                      <>
+                        <h3 className="text-base sm:text-lg font-semibold">{patch.version}</h3>
+                        {canEdit && (
+                          <button
+                            onClick={() => setEditingVersion(patch.id)}
+                            className="inline-flex items-center justify-center rounded-md p-1.5 text-foreground/60 hover:text-foreground hover:bg-[var(--surface-2)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)] touch-manipulation"
+                            title="Edit version"
+                            aria-label="Edit version"
+                          >
+                            <FiEdit size={14} />
+                          </button>
+                        )}
+                      </>
+                    )}
+                    {isCurrent && editingVersion !== patch.id && (
                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
                         <FaStar size={10} />
                         Current
@@ -176,6 +202,7 @@ export default function VersionList({ patches, currentPatchId, canEdit, hackSlug
                       onActionComplete={() => {
                         router.refresh();
                         setEditingChangelog(null);
+                        setEditingVersion(null);
                         // Clear archived patches to force refetch if checkbox is toggled
                         // This ensures restored/archived patches don't show duplicates
                         setArchivedPatches([]);
@@ -306,7 +333,6 @@ function ChangelogEditor({
     setSaving(true);
     setError(null);
     try {
-      const { updatePatchChangelog } = await import("@/app/hack/[slug]/actions");
       const result = await updatePatchChangelog(hackSlug, patchId, changelog);
       if (result.ok) {
         onSave();
@@ -348,6 +374,110 @@ function ChangelogEditor({
           Cancel
         </button>
       </div>
+    </div>
+  );
+}
+
+function VersionEditor({
+  patchId,
+  initialVersion,
+  hackSlug,
+  onSave,
+  onCancel,
+}: {
+  patchId: number;
+  initialVersion: string;
+  hackSlug: string;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  const [version, setVersion] = useState(initialVersion);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-focus input on mount
+  useEffect(() => {
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  }, []);
+
+  const handleSave = async () => {
+    const trimmedVersion = version.trim();
+    if (!trimmedVersion) {
+      setError("Version cannot be empty");
+      return;
+    }
+
+    if (trimmedVersion === initialVersion) {
+      onCancel();
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      const result = await updatePatchVersion(hackSlug, patchId, trimmedVersion);
+      if (result.ok) {
+        onSave();
+      } else {
+        setError(result.error || "Failed to update version");
+      }
+    } catch (e) {
+      setError("Failed to update version");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleSave();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      onCancel();
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+        <input
+          ref={inputRef}
+          type="text"
+          value={version}
+          onChange={(e) => {
+            setVersion(e.target.value);
+            setError(null);
+          }}
+          onKeyDown={handleKeyDown}
+          disabled={saving}
+          className="w-auto min-w-[90px] rounded-md bg-[var(--surface-2)] px-2.5 py-1.5 text-base sm:text-lg font-semibold ring-1 ring-inset ring-[var(--border)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)] disabled:opacity-50 disabled:cursor-not-allowed"
+          placeholder="Version name"
+        />
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            onClick={handleSave}
+            disabled={saving || !version.trim()}
+            className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-2.5 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
+            title="Save version"
+            aria-label="Save version"
+          >
+            <FaCheck size={12} />
+          </button>
+          <button
+            onClick={onCancel}
+            disabled={saving}
+            className="inline-flex items-center justify-center rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-1.5 text-sm font-medium hover:bg-[var(--surface-3)] disabled:opacity-50 touch-manipulation"
+            title="Cancel editing"
+            aria-label="Cancel editing"
+          >
+            <FiX size={14} />
+          </button>
+        </div>
+      </div>
+      {error && <p className="mt-1 text-xs text-red-400">{error}</p>}
     </div>
   );
 }

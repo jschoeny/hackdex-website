@@ -433,6 +433,69 @@ export async function updatePatchChangelog(slug: string, patchId: number, change
   return { ok: true };
 }
 
+export async function updatePatchVersion(slug: string, patchId: number, version: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Unauthorized" };
+
+  // Fetch hack and verify permissions
+  const { data: hack, error: hErr } = await supabase
+    .from("hacks")
+    .select("slug, created_by, current_patch, original_author")
+    .eq("slug", slug)
+    .maybeSingle();
+  if (hErr || !hack) return { ok: false, error: "Hack not found" };
+
+  if (!canEditAsCreator({ created_by: hack.created_by, current_patch: hack.current_patch, original_author: hack.original_author }, user.id)) {
+    return { ok: false, error: "Forbidden" };
+  }
+
+  // Verify patch belongs to this hack
+  const { data: patch, error: pErr } = await supabase
+    .from("patches")
+    .select("id, parent_hack, version")
+    .eq("id", patchId)
+    .maybeSingle();
+  if (pErr || !patch || patch.parent_hack !== slug) {
+    return { ok: false, error: "Patch not found" };
+  }
+
+  // Trim and validate version
+  const trimmedVersion = version.trim();
+  if (!trimmedVersion) {
+    return { ok: false, error: "Version cannot be empty" };
+  }
+
+  // If version hasn't changed, return success
+  if (patch.version === trimmedVersion) {
+    return { ok: true };
+  }
+
+  // Check if version already exists for this hack (excluding current patch)
+  const { data: existing, error: vErr } = await supabase
+    .from("patches")
+    .select("id")
+    .eq("parent_hack", slug)
+    .eq("version", trimmedVersion)
+    .neq("id", patchId)
+    .maybeSingle();
+  if (vErr) return { ok: false, error: vErr.message };
+  if (existing) return { ok: false, error: "That version already exists for this hack." };
+
+  // Update version
+  const serviceClient = await createServiceClient();
+  const { error: updateErr } = await serviceClient
+    .from("patches")
+    .update({ version: trimmedVersion, updated_at: new Date().toISOString() })
+    .eq("id", patchId);
+
+  if (updateErr) return { ok: false, error: updateErr.message };
+
+  revalidatePath(`/hack/${slug}/versions`);
+  revalidatePath(`/hack/${slug}`);
+  return { ok: true };
+}
+
 export async function publishPatchVersion(slug: string, patchId: number): Promise<{ ok: true; willBecomeCurrent?: boolean } | { ok: false; error: string }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
