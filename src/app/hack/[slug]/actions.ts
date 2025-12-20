@@ -525,8 +525,8 @@ export async function publishPatchVersion(slug: string, patchId: number): Promis
 
   // Check if this patch is newer than current_patch
   let willBecomeCurrent = false;
+  const serviceClient = await createServiceClient();
   if (hack.current_patch) {
-    const serviceClient = await createServiceClient();
     const { data: currentPatch } = await serviceClient
       .from("patches")
       .select("created_at")
@@ -540,7 +540,7 @@ export async function publishPatchVersion(slug: string, patchId: number): Promis
   }
 
   // Publish the patch
-  const { error: updateErr } = await supabase
+  const { error: updateErr } = await serviceClient
     .from("patches")
     .update({ published: true, published_at: new Date().toISOString() })
     .eq("id", patchId);
