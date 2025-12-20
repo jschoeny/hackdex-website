@@ -13,7 +13,10 @@ import {
   MdNewReleases,
   MdUpdate,
   MdSortByAlpha,
+  MdChevronLeft,
+  MdChevronRight,
 } from "react-icons/md";
+import { IoEllipsisHorizontal } from "react-icons/io5";
 import { BsSdCardFill } from "react-icons/bs";
 import { CATEGORY_ICONS } from "@/components/Icons/tagCategories";
 import { useBaseRoms } from "@/contexts/BaseRomContext";
@@ -168,6 +171,43 @@ export default function DiscoverBrowser({ initialSort = "trending" }: DiscoverBr
     },
     [scrollToListTopOnMobile, totalPages]
   );
+
+  const getPageNumbers = React.useCallback((current: number, total: number): (number | string)[] => {
+    // If 7 or fewer pages, show all
+    if (total <= 6) {
+      return Array.from({ length: total }, (_, i) => i + 1);
+    }
+
+    const pages: (number | string)[] = [];
+
+    // Always show first page
+    pages.push(1);
+
+    if (current <= 3) {
+      // Near the start: show 1, 2, 3, 4, ..., last
+      for (let i = 2; i <= 4; i++) {
+        pages.push(i);
+      }
+      pages.push("ellipsis");
+      pages.push(total);
+    } else if (current >= total - 2) {
+      // Near the end: show 1, ..., total-3, total-2, total-1, total
+      pages.push("ellipsis");
+      for (let i = total - 3; i <= total; i++) {
+        pages.push(i);
+      }
+    } else {
+      // In the middle: show 1, ..., current-1, current, current+1, ..., last
+      pages.push("ellipsis");
+      pages.push(current - 1);
+      pages.push(current);
+      pages.push(current + 1);
+      pages.push("ellipsis");
+      pages.push(total);
+    }
+
+    return pages;
+  }, []);
 
   function toggleTag(name: string) {
     setSelectedTags((prev) => (prev.includes(name) ? prev.filter((t) => t !== name) : [...prev, name]));
@@ -383,32 +423,65 @@ export default function DiscoverBrowser({ initialSort = "trending" }: DiscoverBr
               <div className="text-xs text-foreground/70 text-center">
                 Showing {paginationRange.startIndex + 1}-{paginationRange.endIndex} of {filtered.length} hacks
               </div>
-              <div className="flex flex-wrap items-center justify-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => changePage(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className={`h-9 rounded-full px-3 text-sm ring-1 ring-inset transition-colors min-w-[90px] ${
-                    currentPage === 1
-                      ? "cursor-not-allowed bg-[var(--surface-2)] text-foreground/40 ring-[var(--border)]"
-                      : "bg-[var(--surface-2)] text-foreground/80 ring-[var(--border)] hover:bg-black/5 dark:hover:bg-white/10"
-                  }`}
-                >
-                  Previous
-                </button>
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: totalPages }).map((_, i) => {
-                    const page = i + 1;
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-2 w-full">
+                {/* Mobile: Previous/Next buttons row, Desktop: unwraps with contents */}
+                <div className="order-1 sm:contents flex items-center justify-center gap-3 sm:gap-2 w-full sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={() => changePage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className={`h-11 sm:h-9 rounded-full px-3 text-sm ring-1 ring-inset transition-colors flex-1 sm:flex-none max-w-[120px] sm:max-w-none min-w-0 sm:min-w-[90px] flex items-center justify-center ${
+                      currentPage === 1
+                        ? "cursor-not-allowed bg-[var(--surface-2)] text-foreground/40 ring-[var(--border)]"
+                        : "bg-[var(--surface-2)] text-foreground/80 ring-[var(--border)] active:bg-black/10 dark:active:bg-white/15 sm:hover:bg-black/5 sm:dark:hover:bg-white/10"
+                    }`}
+                  >
+                    <span className="sm:hidden">
+                      <MdChevronLeft className="h-6 w-6" />
+                    </span>
+                    <span className="hidden sm:inline">Previous</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => changePage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className={`sm:order-3 h-11 sm:h-9 rounded-full px-3 text-sm ring-1 ring-inset transition-colors flex-1 sm:flex-none max-w-[120px] sm:max-w-none min-w-0 sm:min-w-[90px] flex items-center justify-center ${
+                      currentPage === totalPages
+                        ? "cursor-not-allowed bg-[var(--surface-2)] text-foreground/40 ring-[var(--border)]"
+                        : "bg-[var(--surface-2)] text-foreground/80 ring-[var(--border)] active:bg-black/10 dark:active:bg-white/15 sm:hover:bg-black/5 sm:dark:hover:bg-white/10"
+                    }`}
+                  >
+                    <span className="sm:hidden">
+                      <MdChevronRight className="h-6 w-6" />
+                    </span>
+                    <span className="hidden sm:inline">Next</span>
+                  </button>
+                </div>
+                {/* Page numbers - order-2 on mobile (below buttons), order-2 on desktop (between Previous and Next) */}
+                <div className="order-2 flex items-center justify-center gap-1.5 sm:gap-1 flex-wrap">
+                  {getPageNumbers(currentPage, totalPages).map((item, i) => {
+                    if (item === "ellipsis") {
+                      return (
+                        <span
+                          key={`ellipsis-${i}`}
+                          className="h-10 sm:h-8 min-w-6 sm:min-w-5 flex items-center justify-center text-sm sm:text-xs text-foreground/50"
+                          aria-hidden="true"
+                        >
+                          <IoEllipsisHorizontal className="h-5 w-5 sm:h-4 sm:w-4" />
+                        </span>
+                      );
+                    }
+                    const page = item as number;
                     const isActive = page === currentPage;
                     return (
                       <button
                         key={page}
                         type="button"
                         onClick={() => changePage(page)}
-                        className={`h-8 min-w-8 rounded-full px-2 text-xs font-medium ring-1 ring-inset transition-colors ${
+                        className={`h-10 sm:h-8 min-w-10 sm:min-w-8 rounded-full px-2 text-sm sm:text-xs ring-1 ring-inset transition-colors flex items-center justify-center ${
                           isActive
-                            ? "bg-[var(--accent)] text-[var(--foreground)] ring-[var(--accent)]/60"
-                            : "bg-[var(--surface-2)] text-foreground/70 ring-[var(--border)] hover:bg-black/5 dark:hover:bg-white/10"
+                            ? "bg-[var(--accent)] text-[var(--foreground)] font-bold ring-[var(--accent)]/60"
+                            : "bg-[var(--surface-2)] text-foreground/70 font-medium ring-[var(--border)] active:bg-black/10 dark:active:bg-white/15 sm:hover:bg-black/5 sm:dark:hover:bg-white/10"
                         }`}
                         aria-current={isActive ? "page" : undefined}
                       >
@@ -417,18 +490,6 @@ export default function DiscoverBrowser({ initialSort = "trending" }: DiscoverBr
                     );
                   })}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => changePage(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className={`h-9 rounded-full px-3 text-sm ring-1 ring-inset transition-colors min-w-[90px] ${
-                    currentPage === totalPages
-                      ? "cursor-not-allowed bg-[var(--surface-2)] text-foreground/40 ring-[var(--border)]"
-                      : "bg-[var(--surface-2)] text-foreground/80 ring-[var(--border)] hover:bg-black/5 dark:hover:bg-white/10"
-                  }`}
-                >
-                  Next
-                </button>
               </div>
             </div>
           )}
