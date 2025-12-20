@@ -154,7 +154,7 @@ html { scroll-padding-top: var(--anchor-offset); }
   100% { transform: scale(1); }
 }
 
-.anim-float:hover { animation: floatY 2.4s ease-in-out infinite; }
+.anim-float { animation: floatY 2.4s ease-in-out infinite; }
 .anim-pulse { animation: pulseSoft 2.4s ease-in-out infinite; }
 .anim-pop { animation: popIn 220ms cubic-bezier(0.16, 1, 0.3, 1); }
 

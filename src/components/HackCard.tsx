@@ -44,6 +44,7 @@ export default function HackCard({ hack, clickable = true, className = "" }: { h
 
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [isClicked, setIsClicked] = useState(false);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const didDragRef = useRef(false);
 
@@ -56,8 +57,14 @@ export default function HackCard({ hack, clickable = true, className = "" }: { h
       emblaApi.off("select", onSelect);
     };
   }, [emblaApi]);
+
+  useEffect(() => {
+    // Reset isClicked state when component mounts
+    setIsClicked(false);
+  }, []);
+
   const cardClass = `rounded-[12px] overflow-hidden h-full ${
-    clickable ? "transition-transform duration-300 hover:-translate-y-0.5 hover:shadow-xl anim-float" : ""
+    clickable ? `transition-transform duration-300 hover:-translate-y-0.5 hover:shadow-xl ${isClicked ? "anim-float" : ""}` : ""
   } ring-1 ${ready ? "ring-emerald-400/50 bg-emerald-500/10" : "card ring-[var(--border)]"}`;
   const gradientBgClass = `bg-gradient-to-b ${ready ? 'from-emerald-300/5 to-emerald-400/30 dark:from-emerald-950/10 dark:to-emerald-600/40' : 'from-black/30 to-black/10 dark:from-black/80 dark:to-black/40'}`;
   const shadowClass = `shadow-xl ${ready ? "shadow-emerald-700/40 dark:shadow-emerald-200/40" : "shadow-slate-500/40 dark:shadow-slate-300/40"}`;
@@ -219,6 +226,7 @@ export default function HackCard({ hack, clickable = true, className = "" }: { h
             e.stopPropagation();
             didDragRef.current = false;
           }
+          setIsClicked(true);
         }}
       >
         {content}

@@ -2,26 +2,52 @@
 
 import React, { Fragment } from "react";
 import HackCard from "@/components/HackCard";
-import { createClient } from "@/utils/supabase/client";
 import { baseRoms } from "@/data/baseRoms";
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions, Transition } from "@headlessui/react";
 import { useFloating, offset, flip, shift, size, autoUpdate } from "@floating-ui/react";
 import { IconType } from "react-icons";
-import { MdTune } from "react-icons/md";
+import {
+  MdTune,
+  MdWhatshot,
+  MdTrendingUp,
+  MdNewReleases,
+  MdUpdate,
+  MdSortByAlpha,
+  MdChevronLeft,
+  MdChevronRight,
+} from "react-icons/md";
+import { IoEllipsisHorizontal } from "react-icons/io5";
 import { BsSdCardFill } from "react-icons/bs";
 import { CATEGORY_ICONS } from "@/components/Icons/tagCategories";
 import { useBaseRoms } from "@/contexts/BaseRomContext";
-import { sortOrderedTags, OrderedTag, getCoverUrls } from "@/utils/format";
 import { HackCardAttributes } from "@/components/HackCard";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { getDiscoverData } from "@/app/discover/actions";
+import type { DiscoverSortOption } from "@/types/discover";
+
+const SORT_ICON_MAP: Record<DiscoverSortOption, IconType> = {
+  trending: MdWhatshot,
+  popular: MdTrendingUp,
+  new: MdNewReleases,
+  updated: MdUpdate,
+  alphabetical: MdSortByAlpha,
+};
 
 const HACKS_PER_PAGE = 9;
 
-export default function DiscoverBrowser() {
-  const supabase = createClient();
+interface DiscoverBrowserProps {
+  initialSort?: DiscoverSortOption;
+}
+
+export default function DiscoverBrowser({ initialSort = "trending" }: DiscoverBrowserProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [query, setQuery] = React.useState("");
   const [selectedTags, setSelectedTags] = React.useState<string[]>([]);
   const [selectedBaseRoms, setSelectedBaseRoms] = React.useState<string[]>([]);
-  const [sort, setSort] = React.useState("popular");
+  const [sort, setSort] = React.useState<DiscoverSortOption>(initialSort ?? "trending");
   const [hacks, setHacks] = React.useState<HackCardAttributes[]>([]);
   const [tagGroups, setTagGroups] = React.useState<Record<string, string[]>>({});
   const [ungroupedTags, setUngroupedTags] = React.useState<string[]>([]);
@@ -54,144 +80,20 @@ export default function DiscoverBrowser() {
     const run = async () => {
       setLoadingHacks(true);
       setLoadingTags(true);
-      let query = supabase
-        .from("hacks")
-        .select("slug,title,summary,description,base_rom,downloads,created_by,updated_at,current_patch,original_author");
-
-      if (sort === "popular") {
-        // When sorting by popularity, always show non-archive hacks first.
-        // Archives are defined as rows where original_author IS NOT NULL and current_patch IS NULL,
-        // so ordering by current_patch with NULLS LAST effectively pushes archives to the end.
-        query = query
-          .order("downloads", { ascending: false })
-          .order("current_patch", { ascending: false, nullsFirst: false });
-      } else if (sort === "updated") {
-        query = query.order("updated_at", { ascending: false });
-      } else {
-        query = query.order("created_at", { ascending: false });
+      try {
+        const result = await getDiscoverData(sort);
+        setHacks(result.hacks);
+        setTagGroups(result.tagGroups);
+        setUngroupedTags(result.ungroupedTags);
+      } catch (error) {
+        console.error("Failed to fetch hacks:", error);
+        setHacks([]);
+        setTagGroups({});
+        setUngroupedTags([]);
+      } finally {
+        setLoadingHacks(false);
+        setLoadingTags(false);
       }
-
-      const { data: rows } = await query;
-      const slugs = (rows || []).map((r) => r.slug);
-      const { data: coverRows } = await supabase
-        .from("hack_covers")
-        .select("hack_slug,url,position")
-        .in("hack_slug", slugs)
-        .order("position", { ascending: true });
-      const coversBySlug = new Map<string, string[]>();
-      if (coverRows && coverRows.length > 0) {
-        const coverKeys = coverRows.map(c => c.url);
-        const urls = getCoverUrls(coverKeys);
-        // Map: storage object url -> signedUrl
-        const urlToSignedUrl = new Map<string, string>();
-        coverKeys.forEach((key, idx) => {
-          if (urls[idx]) urlToSignedUrl.set(key, urls[idx]);
-        });
-
-        coverRows.forEach((c) => {
-          const arr = coversBySlug.get(c.hack_slug) || [];
-          const signed = urlToSignedUrl.get(c.url);
-          if (signed) {
-            arr.push(signed);
-            coversBySlug.set(c.hack_slug, arr);
-          }
-        });
-      }
-      const { data: tagRows } = await supabase
-        .from("hack_tags")
-        .select("hack_slug,order,tags(name,category)")
-        .in("hack_slug", slugs);
-      const tagsBySlug = new Map<string, OrderedTag[]>();
-      (tagRows || []).forEach((r) => {
-        const arr = tagsBySlug.get(r.hack_slug) || [];
-        arr.push({
-          name: r.tags.name,
-          order: r.order,
-        });
-        tagsBySlug.set(r.hack_slug, arr);
-      });
-
-      const patchIds = Array.from(
-        new Set(
-          (rows || [])
-            .map((r: any) => r.current_patch as number | null)
-            .filter((id): id is number => typeof id === "number")
-        )
-      );
-
-      const versionsByPatchId = new Map<number, string>();
-      if (patchIds.length > 0) {
-        const { data: patchRows } = await supabase
-          .from("patches")
-          .select("id,version")
-          .in("id", patchIds);
-        (patchRows || []).forEach((p: any) => {
-          if (typeof p.id === "number") {
-            versionsByPatchId.set(p.id, p.version || "Pre-release");
-          }
-        });
-      }
-
-      const mappedVersions = new Map<string, string>();
-      (rows || []).forEach((r: any) => {
-        if (typeof r.current_patch === "number") {
-          const version = versionsByPatchId.get(r.current_patch) || "Pre-release";
-          mappedVersions.set(r.slug, version);
-        } else {
-          mappedVersions.set(r.slug, r.original_author ? "Archive" : "Pre-release");
-        }
-      });
-      // Fetch all tags with category to build UI groups
-      const { data: allTagRows } = await supabase
-        .from("tags")
-        .select("name,category");
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id,username");
-      const usernameById = new Map<string, string>();
-      (profiles || []).forEach((p) => usernameById.set(p.id, p.username ? `@${p.username}` : "Unknown"));
-
-      const mapped = (rows || []).map((r) => ({
-        slug: r.slug,
-        title: r.title,
-        author: r.original_author ? r.original_author : usernameById.get(r.created_by as string) || "Unknown",
-        covers: coversBySlug.get(r.slug) || [],
-        tags: sortOrderedTags(tagsBySlug.get(r.slug) || []),
-        downloads: r.downloads,
-        baseRomId: r.base_rom,
-        version: mappedVersions.get(r.slug) || "Pre-release",
-        summary: r.summary,
-        description: r.description,
-        isArchive: r.original_author != null && r.current_patch === null,
-      }));
-
-      setHacks(mapped);
-      setLoadingHacks(false);
-      if (allTagRows) {
-        const groups: Record<string, string[]> = {};
-        const ungrouped: string[] = [];
-        const unique = new Set<string>();
-        // Build groups from authoritative tags table, so we include tags not present in current results too
-        for (const row of allTagRows as any[]) {
-          const name: string = row.name;
-          if (unique.has(name)) continue;
-          unique.add(name);
-          const category: string | null = row.category ?? null;
-          if (category) {
-            if (!groups[category]) groups[category] = [];
-            groups[category].push(name);
-          } else {
-            ungrouped.push(name);
-          }
-        }
-        // Sort for stable UI
-        Object.keys(groups).forEach((k) => groups[k].sort((a, b) => a.localeCompare(b)));
-        ungrouped.sort((a, b) => a.localeCompare(b));
-        setTagGroups(groups);
-        setUngroupedTags(ungrouped);
-      }
-      // Ensure loadingTags is cleared even if no rows were returned
-      setLoadingTags(false);
     };
     run();
   }, [sort]);
@@ -270,6 +172,43 @@ export default function DiscoverBrowser() {
     [scrollToListTopOnMobile, totalPages]
   );
 
+  const getPageNumbers = React.useCallback((current: number, total: number): (number | string)[] => {
+    // If 7 or fewer pages, show all
+    if (total <= 6) {
+      return Array.from({ length: total }, (_, i) => i + 1);
+    }
+
+    const pages: (number | string)[] = [];
+
+    // Always show first page
+    pages.push(1);
+
+    if (current <= 3) {
+      // Near the start: show 1, 2, 3, 4, ..., last
+      for (let i = 2; i <= 4; i++) {
+        pages.push(i);
+      }
+      pages.push("ellipsis");
+      pages.push(total);
+    } else if (current >= total - 2) {
+      // Near the end: show 1, ..., total-3, total-2, total-1, total
+      pages.push("ellipsis");
+      for (let i = total - 3; i <= total; i++) {
+        pages.push(i);
+      }
+    } else {
+      // In the middle: show 1, ..., current-1, current, current+1, ..., last
+      pages.push("ellipsis");
+      pages.push(current - 1);
+      pages.push(current);
+      pages.push(current + 1);
+      pages.push("ellipsis");
+      pages.push(total);
+    }
+
+    return pages;
+  }, []);
+
   function toggleTag(name: string) {
     setSelectedTags((prev) => (prev.includes(name) ? prev.filter((t) => t !== name) : [...prev, name]));
   }
@@ -286,6 +225,11 @@ export default function DiscoverBrowser() {
     setSelectedBaseRoms([]);
   }
 
+  const sortIcon = React.useMemo(() => {
+    const SortIcon = SORT_ICON_MAP[sort];
+    return SortIcon ? <SortIcon className="h-5 w-5 text-foreground/80" aria-hidden="true" /> : null;
+  }, [sort]);
+
   return (
     <div className="max-w-[1200px] mx-auto">
       <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center">
@@ -297,15 +241,31 @@ export default function DiscoverBrowser() {
             className="h-11 w-full rounded-md bg-[var(--surface-2)] px-3 text-sm text-foreground placeholder:text-foreground/60 ring-1 ring-inset ring-[var(--border)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
           />
         </div>
-        <select
-          value={sort}
-          onChange={(e) => setSort(e.target.value)}
-          className="h-11 rounded-md bg-[var(--surface-2)] px-3 text-sm ring-1 ring-inset ring-[var(--border)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+        <div
+          className="inline-flex h-11 items-center gap-1.5 rounded-md bg-[var(--surface-2)] px-3 text-sm ring-1 ring-inset ring-[var(--border)] focus-within:ring-2 focus-within:ring-[var(--ring)]"
         >
-          <option value="popular">Most popular</option>
-          <option value="new">Newest</option>
-          <option value="updated">Recently updated</option>
-        </select>
+          {sortIcon}
+          <select
+            value={sort}
+            onChange={(e) => {
+              const nextSort = e.target.value as DiscoverSortOption;
+              setSort(nextSort);
+              // Keep URL query param in sync so refresh/back preserves sort
+              const current = searchParams ? new URLSearchParams(searchParams.toString()) : new URLSearchParams();
+              current.set("sort", nextSort);
+              const queryString = current.toString();
+              const url = queryString ? `${pathname}?${queryString}` : pathname;
+              router.replace(url);
+            }}
+            className="w-full h-full bg-transparent pl-1 pr-0 text-sm text-foreground focus:outline-none focus:ring-0"
+          >
+            <option value="trending">Trending</option>
+            <option value="popular">Most popular</option>
+            <option value="new">Newest</option>
+            <option value="updated">Recently updated</option>
+            <option value="alphabetical">Alphabetical</option>
+          </select>
+        </div>
       </div>
 
       {/* Unified filter section: Base ROM dropdown first, category dropdowns next, ungrouped tags last */}
@@ -463,32 +423,65 @@ export default function DiscoverBrowser() {
               <div className="text-xs text-foreground/70 text-center">
                 Showing {paginationRange.startIndex + 1}-{paginationRange.endIndex} of {filtered.length} hacks
               </div>
-              <div className="flex flex-wrap items-center justify-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => changePage(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className={`h-9 rounded-full px-3 text-sm ring-1 ring-inset transition-colors min-w-[90px] ${
-                    currentPage === 1
-                      ? "cursor-not-allowed bg-[var(--surface-2)] text-foreground/40 ring-[var(--border)]"
-                      : "bg-[var(--surface-2)] text-foreground/80 ring-[var(--border)] hover:bg-black/5 dark:hover:bg-white/10"
-                  }`}
-                >
-                  Previous
-                </button>
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: totalPages }).map((_, i) => {
-                    const page = i + 1;
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-2 w-full">
+                {/* Mobile: Previous/Next buttons row, Desktop: unwraps with contents */}
+                <div className="order-1 sm:contents flex items-center justify-center gap-3 sm:gap-2 w-full sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={() => changePage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className={`h-11 sm:h-9 rounded-full px-3 text-sm ring-1 ring-inset transition-colors flex-1 sm:flex-none max-w-[120px] sm:max-w-none min-w-0 sm:min-w-[90px] flex items-center justify-center ${
+                      currentPage === 1
+                        ? "cursor-not-allowed bg-[var(--surface-2)] text-foreground/40 ring-[var(--border)]"
+                        : "bg-[var(--surface-2)] text-foreground/80 ring-[var(--border)] active:bg-black/10 dark:active:bg-white/15 sm:hover:bg-black/5 sm:dark:hover:bg-white/10"
+                    }`}
+                  >
+                    <span className="sm:hidden">
+                      <MdChevronLeft className="h-6 w-6" />
+                    </span>
+                    <span className="hidden sm:inline">Previous</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => changePage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className={`sm:order-3 h-11 sm:h-9 rounded-full px-3 text-sm ring-1 ring-inset transition-colors flex-1 sm:flex-none max-w-[120px] sm:max-w-none min-w-0 sm:min-w-[90px] flex items-center justify-center ${
+                      currentPage === totalPages
+                        ? "cursor-not-allowed bg-[var(--surface-2)] text-foreground/40 ring-[var(--border)]"
+                        : "bg-[var(--surface-2)] text-foreground/80 ring-[var(--border)] active:bg-black/10 dark:active:bg-white/15 sm:hover:bg-black/5 sm:dark:hover:bg-white/10"
+                    }`}
+                  >
+                    <span className="sm:hidden">
+                      <MdChevronRight className="h-6 w-6" />
+                    </span>
+                    <span className="hidden sm:inline">Next</span>
+                  </button>
+                </div>
+                {/* Page numbers - order-2 on mobile (below buttons), order-2 on desktop (between Previous and Next) */}
+                <div className="order-2 flex items-center justify-center gap-1.5 sm:gap-1 flex-wrap">
+                  {getPageNumbers(currentPage, totalPages).map((item, i) => {
+                    if (item === "ellipsis") {
+                      return (
+                        <span
+                          key={`ellipsis-${i}`}
+                          className="h-10 sm:h-8 min-w-6 sm:min-w-5 flex items-center justify-center text-sm sm:text-xs text-foreground/50"
+                          aria-hidden="true"
+                        >
+                          <IoEllipsisHorizontal className="h-5 w-5 sm:h-4 sm:w-4" />
+                        </span>
+                      );
+                    }
+                    const page = item as number;
                     const isActive = page === currentPage;
                     return (
                       <button
                         key={page}
                         type="button"
                         onClick={() => changePage(page)}
-                        className={`h-8 min-w-8 rounded-full px-2 text-xs font-medium ring-1 ring-inset transition-colors ${
+                        className={`h-10 sm:h-8 min-w-10 sm:min-w-8 rounded-full px-2 text-sm sm:text-xs ring-1 ring-inset transition-colors flex items-center justify-center ${
                           isActive
-                            ? "bg-[var(--accent)] text-[var(--foreground)] ring-[var(--accent)]/60"
-                            : "bg-[var(--surface-2)] text-foreground/70 ring-[var(--border)] hover:bg-black/5 dark:hover:bg-white/10"
+                            ? "bg-[var(--accent)] text-[var(--foreground)] font-bold ring-[var(--accent)]/60"
+                            : "bg-[var(--surface-2)] text-foreground/70 font-medium ring-[var(--border)] active:bg-black/10 dark:active:bg-white/15 sm:hover:bg-black/5 sm:dark:hover:bg-white/10"
                         }`}
                         aria-current={isActive ? "page" : undefined}
                       >
@@ -497,18 +490,6 @@ export default function DiscoverBrowser() {
                     );
                   })}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => changePage(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className={`h-9 rounded-full px-3 text-sm ring-1 ring-inset transition-colors min-w-[90px] ${
-                    currentPage === totalPages
-                      ? "cursor-not-allowed bg-[var(--surface-2)] text-foreground/40 ring-[var(--border)]"
-                      : "bg-[var(--surface-2)] text-foreground/80 ring-[var(--border)] hover:bg-black/5 dark:hover:bg-white/10"
-                  }`}
-                >
-                  Next
-                </button>
               </div>
             </div>
           )}

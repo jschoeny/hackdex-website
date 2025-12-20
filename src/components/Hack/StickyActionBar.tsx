@@ -90,9 +90,15 @@ export default function StickyActionBar({
         </div>
         <div className="flex w-full md:w-auto flex-col md:flex-row md:flex-wrap items-stretch md:items-center gap-2 mb-4 md:mb-0">
           {!termsAgreed || status === "downloading" ? (
-            <p className="rounded-full mx-auto md:mx-0 px-2 py-0.5 text-xs">
-              By downloading this patch, you agree to the <Link href="/terms" target="_blank" className="underline">Terms of Service</Link>.
-            </p>
+            !romReady ? (
+              <p className="rounded-full mx-auto md:mx-0 px-2 py-0.5 text-xs text-center md:text-left">
+                To download the patch file, you must select a <span className="font-bold">clean ROM</span> for the patcher to use.
+              </p>
+            ) : (
+              <p className="rounded-full mx-auto md:mx-0 px-2 py-0.5 text-xs text-center md:text-left">
+                By downloading this patch, you agree to the <Link href="/terms" target="_blank" className="underline">Terms of Service</Link>.
+              </p>
+            )
           ) : (
             <span className={`rounded-full mx-auto md:mx-0 px-2 py-0.5 text-xs ring-1 transition-opacity duration-300 ${
               romReady
@@ -110,7 +116,7 @@ export default function StickyActionBar({
               <button
                 type="button"
                 onClick={() => uploadInputRef.current?.click()}
-                className="w-5/6 mx-auto md:w-auto md:mx-0 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-foreground text-sm md:text-xs cursor-pointer hover:bg-[var(--surface-3)] hover:text-foreground/80 disabled:cursor-not-allowed disabled:opacity-60"
+                className="shine-wrap btn-premium h-11 md:h-9 w-5/6 mx-auto md:w-auto md:mx-0 md:min-w-34 text-base md:text-sm font-semibold cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {baseRomName ? (
                   <span>Select <span className="font-bold">{baseRomName}</span> ROM</span>
@@ -135,15 +141,15 @@ export default function StickyActionBar({
           <button
             onClick={onPatch}
             data-ready={romReady}
-            disabled={!mounted || (status !== "ready" && status !== "done" && status !== "idle") || !patchAgainReady}
-            className={`shine-wrap btn-premium max-md:data-[ready=false]:hidden! h-11 md:h-9 w-full md:min-w-[7.5rem] ${!termsAgreed || status === 'downloading' ? "md:w-32" : "md:w-auto"} text-base md:text-sm font-semibold cursor-pointer disabled:cursor-not-allowed disabled:opacity-70 ${romReady && status !== 'downloading' && status !== 'ready' && termsAgreed ? "mt-6 md:mt-0" : ""}`}
+            disabled={!mounted || !romReady || (status !== "ready" && status !== "done" && status !== "idle") || !patchAgainReady}
+            className={`shine-wrap btn-premium data-[ready=false]:hidden! h-11 md:h-9 w-full md:min-w-46 ${!termsAgreed || status === 'downloading' ? "md:w-32" : "md:w-auto"} text-base md:text-sm font-semibold cursor-pointer disabled:cursor-not-allowed disabled:opacity-70 ${romReady && status !== 'downloading' && status !== 'ready' && termsAgreed ? "mt-6 md:mt-0" : ""}`}
           >
             <span>{
               status === "patching" ? "Patching…" :
               status === "downloading" ? "Downloading…" :
               status === "done" ? (
                 patchAgainReady ? "Patch Again" : "Patched"
-              ) : termsAgreed ? "Patch Now" : "I Agree"
+              ) : termsAgreed ? "Patch Now" : "Agree and Download"
             }</span>
           </button>
         </div>

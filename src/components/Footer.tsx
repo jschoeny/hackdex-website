@@ -55,6 +55,9 @@ export default function Footer() {
                 <li>
                   <Link href="https://github.com/Hackdex-App/hackdex-website" className="block py-1 hover:underline">GitHub</Link>
                 </li>
+                <li>
+                  <Link href="https://github.com/orgs/Hackdex-App/projects/4" className="block py-1 hover:underline">Roadmap</Link>
+                </li>
               </ul>
             </div>
           </div>

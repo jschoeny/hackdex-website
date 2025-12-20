@@ -3,7 +3,7 @@ import HackForm from "@/components/Hack/HackForm";
 import { createClient } from "@/utils/supabase/server";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa6";
 import Link from "next/link";
-import { getCoverUrls } from "@/utils/format";
+import { sortOrderedTags, getCoverUrls } from "@/utils/format";
 import { checkEditPermission } from "@/utils/hack";
 
 interface EditPageProps {
@@ -47,9 +47,16 @@ export default async function EditHackPage({ params }: EditPageProps) {
 
   const { data: tagRows } = await supabase
     .from("hack_tags")
-    .select("tags(name)")
+    .select("order,tags(name)")
     .eq("hack_slug", slug);
-  const tags = (tagRows || []).map((r: any) => r.tags?.name).filter(Boolean) as string[];
+
+  const tags = sortOrderedTags(
+    (tagRows || [])
+      .map((r) => ({
+        name: r.tags.name,
+        order: r.order,
+      }))
+  ).map((t) => t.name);
 
   let version = "";
   if (hack.current_patch) {
