@@ -159,19 +159,20 @@ export async function getDiscoverData(sort: DiscoverSortOption): Promise<Discove
       // Calculate trending scores if needed
       let trendingScores: Map<string, number> | null = null;
       if (sort === "trending") {
-        // Get all patches for all hacks
+        // Get all patches for all hacks, grouped by slug
         const { data: allPatches, error: allPatchesError } = await supabase
           .from("patches")
           .select("id,parent_hack")
           .in("parent_hack", slugs);
         if (allPatchesError) throw allPatchesError;
 
-        const patchIdToSlug = new Map<number, string>();
-        const allPatchIds: number[] = [];
+        // Group patch IDs by parent_hack (slug)
+        const patchIdsBySlug = new Map<string, number[]>();
         (allPatches || []).forEach((p: any) => {
           if (typeof p.id === "number" && p.parent_hack) {
-            patchIdToSlug.set(p.id, p.parent_hack);
-            allPatchIds.push(p.id);
+            const arr = patchIdsBySlug.get(p.parent_hack) || [];
+            arr.push(p.id);
+            patchIdsBySlug.set(p.parent_hack, arr);
           }
         });
 
@@ -181,22 +182,25 @@ export async function getDiscoverData(sort: DiscoverSortOption): Promise<Discove
         const sinceISO = since.toISOString();
 
         const recentDownloadsBySlug = new Map<string, number>();
-        if (allPatchIds.length > 0) {
-          const { data: recentDownloads, error: downloadsError } = await supabase
-            .from("patch_downloads")
-            .select("patch,created_at")
-            .in("patch", allPatchIds)
-            .gte("created_at", sinceISO);
-          if (downloadsError) throw downloadsError;
 
-          (recentDownloads || []).forEach((dl: any) => {
-            const pid = dl.patch as number | null;
-            if (!pid) return;
-            const slug = patchIdToSlug.get(pid);
-            if (!slug) return;
-            recentDownloadsBySlug.set(slug, (recentDownloadsBySlug.get(slug) || 0) + 1);
-          });
-        }
+        // Query download counts per slug using head: true with count: 'exact'
+        // This avoids fetching all download rows and just gets counts
+        // One query per slug instead of one per patch
+        const downloadCountPromises = Array.from(patchIdsBySlug.entries()).map(async ([slug, patchIds]) => {
+          const { count, error } = await supabase
+            .from("patch_downloads")
+            .select("*", { count: "exact", head: true })
+            .in("patch", patchIds)
+            .gte("created_at", sinceISO);
+
+          if (error) throw error;
+          return { slug, count: count || 0 };
+        });
+
+        const downloadCounts = await Promise.all(downloadCountPromises);
+        downloadCounts.forEach(({ slug, count }) => {
+          recentDownloadsBySlug.set(slug, count);
+        });
 
         // Calculate trending scores: recent_downloads_window + (8 * log(downloads + 1))
         // Give small boost to longer lived popular hacks
