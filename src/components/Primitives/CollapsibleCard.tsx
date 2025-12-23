@@ -13,7 +13,7 @@ export default function CollapsibleCard({ title, children, defaultExpanded = fal
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
   return (
-    <div className="p-4 sm:p-5 mb-6 bg-[var(--surface-1)] border border-[var(--border)]/50 rounded-lg">
+    <div className="card-simple p-4 sm:p-5">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full flex items-center justify-between gap-2 text-left hover:opacity-80 transition-opacity"
