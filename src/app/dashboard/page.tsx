@@ -1,4 +1,4 @@
-import { createClient } from "@/utils/supabase/server";
+import { createClient, createServiceClient } from "@/utils/supabase/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { FiAlertTriangle, FiExternalLink } from "react-icons/fi";
@@ -14,7 +14,12 @@ export default async function DashboardPage() {
   if (!user) redirect("/login");
 
   const { data: isAdmin } = await supa.rpc("is_admin");
-  let pendingHacks: (HackRow & { created_by: string; creator_username: string | null; creator_full_name: string | null })[] = [];
+  let pendingHacks: (HackRow & {
+    created_by: string;
+    creator_username: string | null;
+    creator_full_name: string | null;
+    creator_email: string | null
+  })[] = [];
   if (isAdmin) {
     const { data: pendingHacksData } = await supa
       .from("hacks")
@@ -37,10 +42,26 @@ export default async function DashboardPage() {
         fullNameById.set(p.id, p.full_name);
       });
 
+      // Fetch creator emails using service client (admin API)
+      const serviceClient = await createServiceClient();
+      const emailById = new Map<string, string | null>();
+      for (const userId of creatorIds) {
+        try {
+          const { data: userData, error } = await serviceClient.auth.admin.getUserById(userId);
+          if (!error && userData?.user?.email) {
+            emailById.set(userId, userData.user.email);
+          }
+        } catch (error) {
+          // Silently fail if we can't get the email
+          console.error(`Failed to get email for user ${userId}:`, error);
+        }
+      }
+
       pendingHacks = pendingHacksData.map((h) => ({
         ...h,
         creator_username: usernameById.get(h.created_by as string) || null,
         creator_full_name: fullNameById.get(h.created_by as string) || null,
+        creator_email: emailById.get(h.created_by as string) || null,
       }));
     }
   }
@@ -89,8 +110,8 @@ export default async function DashboardPage() {
           <div className="overflow-hidden rounded-lg border border-amber-600/30 bg-amber-500/5">
             {/* Header row (desktop only) */}
             <div className="hidden lg:grid grid-cols-12 bg-amber-500/5 px-4 py-2 text-xs text-amber-900/80 dark:text-amber-200/80">
-              <div className="col-span-5">Title</div>
-              <div className="col-span-3">Creator</div>
+              <div className="col-span-4">Title</div>
+              <div className="col-span-4">Creator</div>
               <div className="col-span-4">Created</div>
             </div>
             <div className="divide-y divide-amber-600/20">
@@ -119,7 +140,7 @@ export default async function DashboardPage() {
                   >
                     {/* Desktop row */}
                     <div className="hidden lg:grid grid-cols-12 items-center">
-                      <div className="col-span-5 min-w-0">
+                      <div className="col-span-4 min-w-0">
                         <div className="flex items-center gap-3">
                           <div className="flex flex-col items-start min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
@@ -135,9 +156,12 @@ export default async function DashboardPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="col-span-3 flex flex-col">
+                      <div className="col-span-4 flex flex-col min-w-0">
                         {h.creator_full_name && <div className="text-xs text-amber-900/70 dark:text-amber-200/70">{h.creator_full_name}</div>}
                         <div className="text-amber-900/90 dark:text-amber-200/90">{creator}</div>
+                        {h.creator_email && (
+                          <div className="text-xs text-amber-900/60 dark:text-amber-200/60 truncate mt-0.5">{h.creator_email}</div>
+                        )}
                       </div>
                       <div className="col-span-4 min-w-0">
                         <div className="flex items-center gap-3">
@@ -160,10 +184,19 @@ export default async function DashboardPage() {
                             )}
                           </div>
                           <div className="mt-0.5 text-xs text-foreground/60 break-all">/{h.slug}</div>
-                          <div className="flex flex-wrap items-center gap-3 text-xs text-amber-900/90 dark:text-amber-200/90 mt-2">
-                            <span>{creator}</span>
-                            <span>•</span>
-                            <span>{createdDate}</span>
+                          <div className="flex flex-col gap-1 text-xs text-amber-900/90 dark:text-amber-200/90 mt-2">
+                            {(h.creator_full_name || h.creator_email) && (
+                              <div className="text-amber-900/70 dark:text-amber-200/70 break-all flex flex-wrap items-center gap-2">
+                                {h.creator_full_name && <span>{h.creator_full_name}</span>}
+                                {h.creator_full_name && h.creator_email && <span>•</span>}
+                                {h.creator_email && <span>{h.creator_email}</span>}
+                              </div>
+                            )}
+                            <div className="flex flex-wrap items-center gap-3">
+                              <span>{creator}</span>
+                              <span>•</span>
+                              <span>{createdDate}</span>
+                            </div>
                           </div>
                         </div>
                         <FiExternalLink className="h-4 w-4 text-foreground/80 flex-shrink-0" />
