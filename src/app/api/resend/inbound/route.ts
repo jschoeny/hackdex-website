@@ -150,7 +150,7 @@ export async function POST(request: Request) {
       }),
     ));
 
-    if (!reviewThread && messageIds.length > 0) {
+    if (!reviewThread && !reviewToken && messageIds.length > 0) {
       const { data, error } = await serviceClient
         .from("hack_review_threads")
         .select("*")
@@ -161,23 +161,28 @@ export async function POST(request: Request) {
       reviewThread = data;
     }
 
-    if (!contactThread && messageIds.length > 0) {
+    if (!contactThread && !contactToken && messageIds.length > 0) {
       contactThread = await getContactThreadByMessageIds(messageIds);
     }
 
+    const contactAlreadyProcessed = contactThread?.resend_last_email_id === email.id;
+    const reviewAlreadyProcessed = reviewThread?.resend_last_email_id === email.id;
     if (
-      reviewThread?.resend_last_email_id === email.id
-      || contactThread?.resend_last_email_id === email.id
+      (contactAlreadyProcessed || !contactThread)
+      && (reviewAlreadyProcessed || !reviewThread)
+      && (contactThread || reviewThread)
     ) {
       return new Response("Already processed", { status: 200 });
     }
 
     const body = stripQuotedReply(email.text ?? "");
-    let fromMatches = false;
+    let contactFromMatches = false;
+    let reviewFromMatches = false;
     if (contactThread) {
-      fromMatches =
+      contactFromMatches =
         normalizeEmailAddress(email.from) === normalizeEmailAddress(contactThread.email);
-    } else if (reviewThread) {
+    }
+    if (reviewThread) {
       const { data: hack, error: hackError } = await serviceClient
         .from("hacks")
         .select("created_by")
@@ -198,13 +203,14 @@ export async function POST(request: Request) {
             creatorError ?? "No email found",
           );
         } else {
-          fromMatches =
+          reviewFromMatches =
             normalizeEmailAddress(email.from) === normalizeEmailAddress(creatorEmail);
         }
       }
     }
 
     const mappedThread = contactThread ?? reviewThread;
+    const fromMatches = contactThread ? contactFromMatches : reviewFromMatches;
     const embed: APIEmbed = {
       title: (email.subject || "(No subject)").slice(0, 256),
       description: (body || "(No plain-text body)").slice(0, 3500),
@@ -224,64 +230,99 @@ export async function POST(request: Request) {
               inline: true,
             }]
           : []),
-        ...(contactThread
-          ? [{ name: "Ticket", value: contactThread.ticket_id, inline: true }]
-          : []),
       ],
     };
 
-    if (contactThread) {
+    let delivered = false;
+    let deliveryFailed = false;
+
+    if (contactThread && !contactAlreadyProcessed) {
+      const contactEmbed: APIEmbed = {
+        ...embed,
+        fields: [
+          {
+            name: `From ${contactFromMatches ? "✅" : "❓"}`,
+            value: email.from.slice(0, 1024),
+            inline: true,
+          },
+          { name: "Ticket", value: contactThread.ticket_id, inline: true },
+        ],
+      };
       const postResult = await deliverInboundContactMessage(contactThread, {
-        embeds: [embed],
+        embeds: [contactEmbed],
       });
       if (postResult !== "posted") {
         if (process.env.DISCORD_WEBHOOK_ADMIN_REPORTS_URL) {
           await sendDiscordMessageEmbed(
             process.env.DISCORD_WEBHOOK_ADMIN_REPORTS_URL,
-            [embed],
+            [contactEmbed],
           );
         }
-        throw new Error("Inbound contact email could not be posted to Discord");
+        deliveryFailed = true;
+      } else {
+        delivered = true;
+        const { error: updateError } = await serviceClient
+          .from("contact_threads")
+          .update({
+            resend_last_email_id: email.id,
+            resend_last_message_id: email.message_id,
+          })
+          .eq("ticket_id", contactThread.ticket_id);
+        if (updateError) {
+          console.error("[Contact] Failed to persist inbound email metadata:", updateError);
+        }
       }
-      const { error: updateError } = await serviceClient
-        .from("contact_threads")
-        .update({
-          resend_last_email_id: email.id,
-          resend_last_message_id: email.message_id,
-        })
-        .eq("ticket_id", contactThread.ticket_id);
-      if (updateError) {
-        console.error("[Contact] Failed to persist inbound email metadata:", updateError);
-      }
-    } else if (reviewThread) {
+    }
+
+    if (reviewThread && !reviewAlreadyProcessed) {
+      const reviewEmbed: APIEmbed = {
+        ...embed,
+        fields: [
+          {
+            name: `From ${reviewFromMatches ? "✅" : "❓"}`,
+            value: email.from.slice(0, 1024),
+            inline: true,
+          },
+        ],
+      };
       const postResult = await postHackReviewMessage(reviewThread, {
-        embeds: [embed],
+        embeds: [reviewEmbed],
       });
       if (postResult !== "posted") {
-        throw new Error("Inbound email could not be posted to Discord");
+        deliveryFailed = true;
+      } else {
+        delivered = true;
+        const { error: updateError } = await serviceClient
+          .from("hack_review_threads")
+          .update({
+            resend_last_email_id: email.id,
+            resend_last_message_id: email.message_id,
+          })
+          .eq("hack_slug", reviewThread.hack_slug);
+        if (updateError) {
+          console.error("[HackReview] Failed to persist inbound email metadata:", updateError);
+        }
       }
-      const { error: updateError } = await serviceClient
-        .from("hack_review_threads")
-        .update({
-          resend_last_email_id: email.id,
-          resend_last_message_id: email.message_id,
-        })
-        .eq("hack_slug", reviewThread.hack_slug);
-      if (updateError) {
-        console.error("[HackReview] Failed to persist inbound email metadata:", updateError);
+    }
+
+    if (deliveryFailed) {
+      throw new Error("Inbound email could not be posted to Discord");
+    }
+
+    if (!delivered) {
+      if (contactToken && process.env.DISCORD_WEBHOOK_ADMIN_REPORTS_URL) {
+        await sendDiscordMessageEmbed(
+          process.env.DISCORD_WEBHOOK_ADMIN_REPORTS_URL,
+          [embed],
+        );
+      } else if (process.env.DISCORD_WEBHOOK_ADMIN_HACKS_URL) {
+        await sendDiscordMessageEmbed(
+          process.env.DISCORD_WEBHOOK_ADMIN_HACKS_URL,
+          [embed],
+        );
+      } else {
+        console.warn("[HackReview] Inbound email was unmatched and no admin webhook is configured.");
       }
-    } else if (contactToken && process.env.DISCORD_WEBHOOK_ADMIN_REPORTS_URL) {
-      await sendDiscordMessageEmbed(
-        process.env.DISCORD_WEBHOOK_ADMIN_REPORTS_URL,
-        [embed],
-      );
-    } else if (process.env.DISCORD_WEBHOOK_ADMIN_HACKS_URL) {
-      await sendDiscordMessageEmbed(
-        process.env.DISCORD_WEBHOOK_ADMIN_HACKS_URL,
-        [embed],
-      );
-    } else {
-      console.warn("[HackReview] Inbound email was unmatched and no admin webhook is configured.");
     }
 
     return new Response("Processed", { status: 200 });
