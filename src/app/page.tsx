@@ -169,12 +169,14 @@ export default async function Home() {
               <div className="mt-8 mx-auto flex w-full max-w-[320px] flex-col items-start gap-3 sm:mx-0 sm:max-w-none sm:flex-row sm:items-center">
                 <Link
                   href="/discover"
+                  prefetch={false}
                   className="inline-flex h-14 w-full sm:h-12 sm:w-auto items-center justify-center rounded-md bg-[var(--accent)] px-5 text-base font-semibold sm:font-medium text-[var(--accent-foreground)] transition-colors hover:bg-[var(--accent-700)] elevate"
                 >
                   Explore hacks
                 </Link>
                 <Link
                   href="/submit"
+                  prefetch={false}
                   className="inline-flex h-14 w-full sm:h-12 sm:w-auto items-center justify-center rounded-md border border-white/10 bg-white/10 px-5 text-base font-semibold sm:font-medium text-foreground transition-colors hover:bg-white/15 elevate"
                 >
                   Submit a patch
@@ -226,7 +228,7 @@ export default async function Home() {
           </div>
         </div>
         <div className="mt-12 mb-4 mx-auto flex flex-col items-center max-w-[320px] sm:mt-16">
-          <Link href="/faq" className="inline-flex items-center rounded-full elevate border border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/5 px-4 py-1.5 text-sm text-foreground hover:bg-black/10 dark:hover:bg-white/10">
+          <Link href="/faq" prefetch={false} className="inline-flex items-center rounded-full elevate border border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/5 px-4 py-1.5 text-sm text-foreground hover:bg-black/10 dark:hover:bg-white/10">
             <span className="font-medium">New to Hackdex?</span>
             <span className="ml-1 underline underline-offset-2">Read the FAQ</span>
             <FaArrowRightLong size={12} aria-hidden className="ml-1" />
@@ -243,6 +245,7 @@ export default async function Home() {
             </div>
             <Link
               href="/discover"
+              prefetch={false}
               className="text-sm font-medium text-foreground/80 hover:text-foreground hover:underline"
             >
               View all <FaArrowRightLong className="inline ml-1" size={12} />
@@ -250,7 +253,7 @@ export default async function Home() {
           </div>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {hackData.map((hack) => (
-              <HackCard key={hack.slug} hack={hack} prefetch={true} />
+              <HackCard key={hack.slug} hack={hack} />
             ))}
           </div>
           <div className="sm:hidden flex justify-center mt-6">
@@ -259,7 +262,7 @@ export default async function Home() {
               size="lg"
               className="w-48"
             >
-              <Link href="/discover" className="inline-flex items-center">
+              <Link href="/discover" prefetch={false} className="inline-flex items-center">
                 View all
               </Link>
             </Button>

@@ -511,7 +511,7 @@ export default function DiscoverBrowser({
               </button>
             )}
           </div>
-          <p className="mt-4 text-sm text-foreground/60 text-center">Can't find the hack you want? Try asking the dev to <Link href="/faq#creators" className="text-[var(--accent)] hover:underline">submit it to Hackdex</Link>.</p>
+          <p className="mt-4 text-sm text-foreground/60 text-center">Can't find the hack you want? Try asking the dev to <Link href="/faq#creators" prefetch={false} className="text-[var(--accent)] hover:underline">submit it to Hackdex</Link>.</p>
         </div>
       ) : (
         <>

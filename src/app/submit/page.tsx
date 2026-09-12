@@ -40,7 +40,7 @@ export default async function SubmitPage() {
           <p className="text-amber-950/80 dark:text-amber-50/80">
             Hackdex will only accept submissions for hacks that <span className="text-amber-950 dark:text-amber-50 font-bold">you own</span>.
             If it is not your hack, try reaching out to the original creator to see if they are interested in submitting it themselves.
-            All hacks must also comply with the <Link href="/terms" className="text-amber-950 dark:text-amber-50 font-bold hover:underline">Terms of Service</Link>.
+            All hacks must also comply with the <Link href="/terms" prefetch={false} className="text-amber-950 dark:text-amber-50 font-bold hover:underline">Terms of Service</Link>.
           </p>
           <p className="text-amber-950/80 dark:text-amber-50/80">
             If you attempt to circumvent this policy, <span className="text-amber-950 dark:text-amber-50 font-bold italic">your submission will be rejected</span> and your account may be banned.

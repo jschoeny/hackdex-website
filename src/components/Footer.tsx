@@ -17,18 +17,20 @@ export default function Footer() {
               We host only patch files, never ROMs. When using our patcher, your legally-obtained ROMs never leave your device.
             </p>
           </div>
+          {/* Viewport prefetch of these links from every page was showing up as
+              Edge Requests on /terms, /submit, /roms, etc. far above their page-view share. */}
           <div className="grid grid-cols-1 gap-x-12 gap-y-8 sm:gap-y-4 sm:grid-cols-2 md:grid-cols-3 md:min-w-[465px]">
             <div>
               <div className="mb-3 pb-2 border-b border-white/10 text-xs font-medium uppercase tracking-wider text-foreground/80">Platform</div>
               <ul className="space-y-1.5 sm:space-y-2">
                 <li>
-                  <Link href="/discover" className="block py-1 hover:underline">Discover</Link>
+                  <Link href="/discover" prefetch={false} className="block py-1 hover:underline">Discover</Link>
                 </li>
                 <li>
-                  <Link href="/submit" className="block py-1 hover:underline">Submit</Link>
+                  <Link href="/submit" prefetch={false} className="block py-1 hover:underline">Submit</Link>
                 </li>
                 <li>
-                  <Link href="/login" className="block py-1 hover:underline">Log in</Link>
+                  <Link href="/login" prefetch={false} className="block py-1 hover:underline">Log in</Link>
                 </li>
               </ul>
             </div>
@@ -36,10 +38,10 @@ export default function Footer() {
               <div className="mb-3 pb-2 border-b border-white/10 text-xs font-medium uppercase tracking-wider text-foreground/80">Legal</div>
               <ul className="space-y-1.5 sm:space-y-2">
                 <li>
-                  <Link href="/terms" className="block py-1 hover:underline">Terms of Service</Link>
+                  <Link href="/terms" prefetch={false} className="block py-1 hover:underline">Terms of Service</Link>
                 </li>
                 <li>
-                  <Link href="/privacy" className="block py-1 hover:underline">Privacy Policy</Link>
+                  <Link href="/privacy" prefetch={false} className="block py-1 hover:underline">Privacy Policy</Link>
                 </li>
               </ul>
             </div>
@@ -47,10 +49,10 @@ export default function Footer() {
               <div className="mb-3 pb-2 border-b border-white/10 text-xs font-medium uppercase tracking-wider text-foreground/80">Support</div>
               <ul className="space-y-1.5 sm:space-y-2">
                 <li>
-                  <Link href="/faq" className="block py-1 hover:underline">FAQ</Link>
+                  <Link href="/faq" prefetch={false} className="block py-1 hover:underline">FAQ</Link>
                 </li>
                 <li>
-                  <Link href="/contact" className="block py-1 hover:underline">Contact</Link>
+                  <Link href="/contact" prefetch={false} className="block py-1 hover:underline">Contact</Link>
                 </li>
                 <li>
                   <Link href="https://github.com/Hackdex-App/hackdex-website" className="block py-1 hover:underline">GitHub</Link>

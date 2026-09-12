@@ -15,6 +15,7 @@ function NavLink({ href, label, className = "", onClick }: { href: string; label
   return (
     <Link
       href={href}
+      prefetch={false}
       data-active={isActive || undefined}
       onClick={onClick}
       className={`group rounded-md px-3 py-2 text-sm transition-colors text-foreground/80 hover:bg-[var(--surface-2)] underline-offset-5 decoration-2 decoration-[var(--accent)] ${
@@ -90,8 +91,8 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-[var(--border)] backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="mx-auto flex h-16 max-w-screen-2xl items-center justify-between px-6">
-        <Link href="/" className="flex items-center gap-2">
-          <Image src="/logo.png" alt="Hackdex Logo" width={32} height={32} />
+        <Link href="/" prefetch={false} className="flex items-center gap-2">
+          <Image src="/logo.png" alt="Hackdex Logo" width={32} height={32} unoptimized />
           <span className="text-[22px] md:text-[18px] font-semibold tracking-tight hover:opacity-90 transition-opacity">Hackdex</span>
           <span className="inline-flex items-center rounded-full bg-[var(--accent)]/10 px-2 py-0.5 text-[12px] md:text-[10px] font-semibold uppercase tracking-wide text-[var(--accent)] ring-1 ring-[var(--accent)]/30">Beta</span>
         </Link>
@@ -112,6 +113,7 @@ export default function Header() {
             />
             <Link
               href="/submit"
+              prefetch={false}
               className={`inline-flex h-9 items-center justify-center rounded-md px-3 text-sm font-semibold transition-colors bg-[var(--accent)] text-[var(--accent-foreground)] hover:bg-[var(--accent-700)] ${
                 pathname === "/submit" ? "ring-2 ring-[var(--ring)] ring-offset-2 ring-offset-[var(--background)] brightness-110" : ""
               }`}
@@ -121,6 +123,7 @@ export default function Header() {
             {isAuthenticated && (
               <Link
                 href="/dashboard"
+                prefetch={false}
                 data-active={pathname === "/dashboard" || undefined}
                 className="ml-1 relative group inline-flex items-center justify-center rounded-full ring-1 ring-[var(--border)] p-[2px] data-active:ring-2 data-active:ring-[var(--ring)]"
                 aria-label="Open dashboard"
@@ -184,6 +187,7 @@ export default function Header() {
             {isAuthenticated && (
               <Link
                 href="/dashboard"
+                prefetch={false}
                 onClick={() => setIsMobileMenuOpen(false)}
                 data-active={pathname === "/dashboard" || undefined}
                 className="mt-1 inline-flex items-center gap-3 rounded-md px-3 py-3 ring-1 ring-[var(--border)]"

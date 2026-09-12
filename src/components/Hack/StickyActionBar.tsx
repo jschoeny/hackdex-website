@@ -209,7 +209,7 @@ export default function StickyActionBar({
               </p>
             ) : (
               <p className="rounded-full mx-auto md:mx-0 px-2 py-0.5 text-xs text-center md:text-right md:text-balance">
-                By patching, you agree to the <Link href="/terms" target="_blank" className="underline">Terms of Service</Link>.
+                By patching, you agree to the <Link href="/terms" prefetch={false} target="_blank" className="underline">Terms of Service</Link>.
               </p>
             )
           ) : (

@@ -70,6 +70,7 @@ export default function CollapsibleTags({ tags }: CollapsibleTagsProps) {
             {tags.map((t) => (
               <Link
                 key={t}
+                prefetch={false}
                 href={`/discover?${buildDiscoverSearchParams({
                   ...DISCOVER_DEFAULT_STATE,
                   tags: [t],

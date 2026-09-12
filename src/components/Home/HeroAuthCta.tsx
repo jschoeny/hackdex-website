@@ -11,14 +11,14 @@ export default function HeroAuthCta() {
 
   if (user) {
     return (
-      <Link href="/dashboard" className={linkClassName}>
+      <Link href="/dashboard" prefetch={false} className={linkClassName}>
         Go to dashboard
       </Link>
     );
   }
 
   return (
-    <Link href="/login" className={linkClassName}>
+    <Link href="/login" prefetch={false} className={linkClassName}>
       Already a creator? Log in
     </Link>
   );
