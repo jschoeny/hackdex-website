@@ -5,34 +5,24 @@ import { useSearchParams } from "next/navigation";
 import { validateEmail } from "@/utils/auth";
 import { sendContact, type ContactActionState } from "@/app/contact/actions";
 import Select from "@/components/Primitives/Select";
+import { contactTopicLabels, isContactTopic, type ContactTopic } from "@/utils/contact";
 
-type Topic =
-  | "general"
-  | "bug"
-  | "account"
-  | "creator"
-  | "security"
-  | "other";
-
-const topicLabels: Record<Topic, string> = {
-  general: "General question",
-  bug: "Bug report",
-  account: "Account issue",
-  creator: "Creator support",
-  security: "Security disclosure",
-  other: "Other",
-};
-
-export default function ContactForm() {
+export default function ContactForm({
+  defaultName = "",
+  defaultEmail = "",
+}: {
+  defaultName?: string;
+  defaultEmail?: string;
+}) {
   const searchParams = useSearchParams();
 
-  const topicFromParams = (searchParams.get("topic") || "general").toLowerCase() as Topic;
-  const [topic, setTopic] = React.useState<Topic>(
-    (Object.keys(topicLabels) as Topic[]).includes(topicFromParams) ? topicFromParams : "general"
+  const topicFromParams = (searchParams.get("topic") || "general").toLowerCase();
+  const [topic, setTopic] = React.useState<ContactTopic>(
+    isContactTopic(topicFromParams) ? topicFromParams : "general"
   );
 
-  const [name, setName] = React.useState("");
-  const [email, setEmail] = React.useState("");
+  const [name, setName] = React.useState(defaultName);
+  const [email, setEmail] = React.useState(defaultEmail);
   const [emailError, setEmailError] = React.useState<string | null>(null);
   const [message, setMessage] = React.useState("");
   const [contextUrl, setContextUrl] = React.useState("");
@@ -49,16 +39,18 @@ export default function ContactForm() {
 
   React.useEffect(() => {
     if (state.success) {
-      // Reset form on success
-      setName("");
-      setEmail("");
+      setName(defaultName);
+      setEmail(defaultEmail);
       setMessage("");
       setContextUrl("");
     }
-  }, [state.success]);
+  }, [state.success, defaultName, defaultEmail]);
 
   return (
     <form className="grid gap-5 group">
+      {state.retryToken && !state.success && (
+        <input type="hidden" name="retryToken" value={state.retryToken} />
+      )}
       {(state.error && !isPending) && (
         <div className="rounded-md bg-red-500/10 ring-1 ring-red-600/40 px-3 py-2 text-sm text-red-300">
           {state.error}
@@ -75,10 +67,10 @@ export default function ContactForm() {
           id="topic"
           name="topic"
           value={topic}
-          onChange={(value) => setTopic(value as Topic)}
-          options={(Object.keys(topicLabels) as Topic[]).map((key) => ({
+          onChange={(value) => setTopic(value as ContactTopic)}
+          options={(Object.keys(contactTopicLabels) as ContactTopic[]).map((key) => ({
             value: key,
-            label: topicLabels[key],
+            label: contactTopicLabels[key],
           }))}
         />
         <span className="text-xs text-foreground/60">

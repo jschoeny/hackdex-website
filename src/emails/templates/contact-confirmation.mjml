@@ -1,0 +1,23 @@
+<mjml>
+  <mj-head>
+    <mj-include path="../partials/head.mjml" />
+    <mj-preview>We received your message (ticket #{{ticketId}})</mj-preview>
+  </mj-head>
+  <mj-body background-color="#f3f4f6">
+    <mj-include path="../partials/header.mjml" />
+    <mj-section background-color="#ffffff">
+      <mj-column>
+        <mj-text font-size="24px" font-weight="700" color="#171717" padding-bottom="12px">
+          We received your message
+        </mj-text>
+        <mj-text font-size="16px" line-height="24px" color="#374151">
+          Ticket <strong>#{{ticketId}}</strong> · {{topicLabel}}
+        </mj-text>
+        <mj-text font-size="16px" line-height="24px" color="#374151">
+          Reply to this email to continue the conversation with the Hackdex team.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="../partials/sign-off.mjml" />
+  </mj-body>
+</mjml>

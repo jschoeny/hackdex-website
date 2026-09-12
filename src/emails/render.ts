@@ -20,9 +20,22 @@ export type HackReviewReplyEmailVars = {
   adminName: string;
 };
 
+export type ContactConfirmationEmailVars = {
+  ticketId: string;
+  topicLabel: string;
+};
+
+export type ContactReplyEmailVars = {
+  ticketId: string;
+  message: string;
+  adminName: string;
+};
+
 export type EmailTemplateVars = {
   "hack-approved": HackApprovedEmailVars;
   "hack-review-reply": HackReviewReplyEmailVars;
+  "contact-confirmation": ContactConfirmationEmailVars;
+  "contact-reply": ContactReplyEmailVars;
 };
 
 export type EmailTemplate = keyof EmailTemplateVars;
@@ -56,6 +69,15 @@ const templateNormalizers: {
   "hack-review-reply": ({ title, slug, message, adminName }) => ({
     title: escapeHtml(title),
     slug: encodeURIComponent(slug),
+    message: escapeHtml(message).replace(/\r?\n/g, "<br />"),
+    adminName: escapeHtml(adminName),
+  }),
+  "contact-confirmation": ({ ticketId, topicLabel }) => ({
+    ticketId: escapeHtml(ticketId),
+    topicLabel: escapeHtml(topicLabel),
+  }),
+  "contact-reply": ({ ticketId, message, adminName }) => ({
+    ticketId: escapeHtml(ticketId),
     message: escapeHtml(message).replace(/\r?\n/g, "<br />"),
     adminName: escapeHtml(adminName),
   }),

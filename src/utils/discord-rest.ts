@@ -33,6 +33,7 @@ function getDiscordBotToken(): string | null {
 async function discordRequest<T>(
   path: string,
   init: RequestInit = {},
+  options?: { allowStatuses?: number[] },
 ): Promise<T | null> {
   const token = getDiscordBotToken();
   if (!token) return null;
@@ -48,6 +49,7 @@ async function discordRequest<T>(
   });
 
   if (!response.ok) {
+    if (options?.allowStatuses?.includes(response.status)) return null;
     const detail = await response.text();
     throw new Error(`Discord API ${response.status}: ${detail}`);
   }
@@ -149,18 +151,66 @@ export async function createDiscordReviewThread(args: {
 }
 
 export async function getDiscordThread(threadId: string): Promise<DiscordThread | null> {
-  return discordRequest<DiscordThread>(`/channels/${threadId}`);
+  return discordRequest<DiscordThread>(`/channels/${threadId}`, {}, { allowStatuses: [404] });
+}
+
+export async function updateDiscordThread(
+  threadId: string,
+  patch: { name?: string; applied_tags?: string[] },
+): Promise<DiscordThread | null> {
+  return discordRequest<DiscordThread>(`/channels/${threadId}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
 }
 
 export async function postDiscordThreadMessage(
   threadId: string,
   message: { content?: string; embeds?: APIEmbed[] },
 ): Promise<boolean> {
+  await discordRequest(`/channels/${threadId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ archived: false }),
+  });
   const result = await discordRequest<{ id: string }>(`/channels/${threadId}/messages`, {
     method: "POST",
     body: JSON.stringify(message),
   });
   return result !== null;
+}
+
+export function contactForumTagId(topic: string): string | undefined {
+  const entries = process.env.DISCORD_CONTACT_FORUM_TAG_IDS ?? "";
+  for (const entry of entries.split(",")) {
+    const [key, id] = entry.split(":").map((part) => part.trim());
+    if (key === topic && id) return id;
+  }
+  return undefined;
+}
+
+export async function createDiscordContactThread(args: {
+  name: string;
+  topic: string;
+  embeds: APIEmbed[];
+}): Promise<DiscordThread | null> {
+  const forumChannelId = process.env.DISCORD_CONTACT_FORUM_CHANNEL_ID;
+  if (!forumChannelId) {
+    console.warn(
+      "[Contact] DISCORD_CONTACT_FORUM_CHANNEL_ID is missing; skipping contact thread creation.",
+    );
+    return null;
+  }
+
+  const topicTagId = contactForumTagId(args.topic);
+  return discordRequest<DiscordThread>(`/channels/${forumChannelId}/threads`, {
+    method: "POST",
+    body: JSON.stringify({
+      name: args.name,
+      auto_archive_duration: 10080,
+      ...(topicTagId ? { applied_tags: [topicTagId] } : {}),
+      message: { embeds: args.embeds },
+    }),
+  });
 }
 
 export async function approveDiscordReviewThread(threadId: string): Promise<boolean> {

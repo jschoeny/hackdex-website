@@ -1,6 +1,11 @@
 import type { APIEmbed } from "discord-api-types/v10";
 import { Resend, type EmailReceivedEvent } from "resend";
 
+import {
+  getContactThreadByMessageIds,
+  getContactThreadByReplyToken,
+  postContactThreadMessage,
+} from "@/utils/contact-threads";
 import { sendDiscordMessageEmbed } from "@/utils/discord";
 import { postHackReviewMessage } from "@/utils/hack-review";
 import { createServiceClient } from "@/utils/supabase/server";
@@ -46,9 +51,10 @@ function normalizeEmailAddress(value: string): string {
 function replyTokenFromAddresses(
   addresses: string[],
   inboundDomain: string,
+  localPart: "reviews" | "contact",
 ): string | null {
   const escapedDomain = inboundDomain.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const pattern = new RegExp(`reviews\\+([A-Za-z0-9_-]+)@${escapedDomain}`, "i");
+  const pattern = new RegExp(`${localPart}\\+([A-Za-z0-9_-]+)@${escapedDomain}`, "i");
   for (const address of addresses) {
     const match = address.match(pattern);
     if (match) return match[1].toLowerCase();
@@ -110,11 +116,15 @@ export async function POST(request: Request) {
       ...email.to,
       ...email.received_for,
     ];
-    const replyToken = replyTokenFromAddresses(addresses, inboundDomain);
+    const contactToken = replyTokenFromAddresses(addresses, inboundDomain, "contact");
+    const reviewToken = replyTokenFromAddresses(addresses, inboundDomain, "reviews");
+    let contactThread = contactToken
+      ? await getContactThreadByReplyToken(contactToken)
+      : null;
     let reviewThread = null;
 
-    if (replyToken) {
-      const escapedReplyToken = replyToken.replaceAll("_", "\\_");
+    if (reviewToken) {
+      const escapedReplyToken = reviewToken.replaceAll("_", "\\_");
       const { data, error } = await serviceClient
         .from("hack_review_threads")
         .select("*")
@@ -124,41 +134,50 @@ export async function POST(request: Request) {
       reviewThread = data;
     }
 
-    if (!reviewThread) {
-      const referenceHeaders = [
-        headerValue(email.headers, "in-reply-to"),
-        headerValue(email.headers, "references"),
-      ].filter((value): value is string => Boolean(value));
-      const messageIds = Array.from(new Set(
-        referenceHeaders.flatMap((value) => {
-          const bracketedIds = value.match(/<[^>]+>/g) ?? [];
-          return [
-            value.trim(),
-            ...bracketedIds,
-            ...bracketedIds.map((id) => id.slice(1, -1)),
-            ...value.split(/\s+/).filter(Boolean),
-          ];
-        }),
-      ));
-      if (messageIds.length > 0) {
-        const { data, error } = await serviceClient
-          .from("hack_review_threads")
-          .select("*")
-          .in("resend_last_message_id", messageIds)
-          .limit(1)
-          .maybeSingle();
-        if (error) throw error;
-        reviewThread = data;
-      }
+    const referenceHeaders = [
+      headerValue(email.headers, "in-reply-to"),
+      headerValue(email.headers, "references"),
+    ].filter((value): value is string => Boolean(value));
+    const messageIds = Array.from(new Set(
+      referenceHeaders.flatMap((value) => {
+        const bracketedIds = value.match(/<[^>]+>/g) ?? [];
+        return [
+          value.trim(),
+          ...bracketedIds,
+          ...bracketedIds.map((id) => id.slice(1, -1)),
+          ...value.split(/\s+/).filter(Boolean),
+        ];
+      }),
+    ));
+
+    if (!reviewThread && messageIds.length > 0) {
+      const { data, error } = await serviceClient
+        .from("hack_review_threads")
+        .select("*")
+        .in("resend_last_message_id", messageIds)
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      reviewThread = data;
     }
 
-    if (reviewThread?.resend_last_email_id === email.id) {
+    if (!contactThread && messageIds.length > 0) {
+      contactThread = await getContactThreadByMessageIds(messageIds);
+    }
+
+    if (
+      reviewThread?.resend_last_email_id === email.id
+      || contactThread?.resend_last_email_id === email.id
+    ) {
       return new Response("Already processed", { status: 200 });
     }
 
     const body = stripQuotedReply(email.text ?? "");
-    let creatorEmailMatches = false;
-    if (reviewThread) {
+    let fromMatches = false;
+    if (contactThread) {
+      fromMatches =
+        normalizeEmailAddress(email.from) === normalizeEmailAddress(contactThread.email);
+    } else if (reviewThread) {
       const { data: hack, error: hackError } = await serviceClient
         .from("hacks")
         .select("created_by")
@@ -179,35 +198,64 @@ export async function POST(request: Request) {
             creatorError ?? "No email found",
           );
         } else {
-          creatorEmailMatches =
+          fromMatches =
             normalizeEmailAddress(email.from) === normalizeEmailAddress(creatorEmail);
         }
       }
     }
 
+    const mappedThread = contactThread ?? reviewThread;
     const embed: APIEmbed = {
       title: (email.subject || "(No subject)").slice(0, 256),
       description: (body || "(No plain-text body)").slice(0, 3500),
       color: 0x5865f2,
       fields: [
         {
-          name: reviewThread
-            ? `From ${creatorEmailMatches ? "✅" : "❓"}`
+          name: mappedThread
+            ? `From ${fromMatches ? "✅" : "❓"}`
             : "From",
           value: email.from.slice(0, 1024),
           inline: true,
         },
-        ...(!reviewThread
+        ...(!mappedThread
           ? [{
               name: "To",
               value: (email.to.join(", ") || inboundDomain).slice(0, 1024),
               inline: true,
             }]
           : []),
+        ...(contactThread
+          ? [{ name: "Ticket", value: contactThread.ticket_id, inline: true }]
+          : []),
       ],
     };
 
-    if (reviewThread) {
+    if (contactThread) {
+      const postResult = await postContactThreadMessage(contactThread, {
+        embeds: [embed],
+      });
+      if (postResult === "failed") {
+        throw new Error("Inbound email could not be posted to Discord");
+      }
+      if (postResult === "no-thread") {
+        if (process.env.DISCORD_WEBHOOK_ADMIN_REPORTS_URL) {
+          await sendDiscordMessageEmbed(
+            process.env.DISCORD_WEBHOOK_ADMIN_REPORTS_URL,
+            [embed],
+          );
+        }
+      }
+      const { error: updateError } = await serviceClient
+        .from("contact_threads")
+        .update({
+          resend_last_email_id: email.id,
+          resend_last_message_id: email.message_id,
+        })
+        .eq("ticket_id", contactThread.ticket_id);
+      if (updateError) {
+        console.error("[Contact] Failed to persist inbound email metadata:", updateError);
+      }
+    } else if (reviewThread) {
       const postResult = await postHackReviewMessage(reviewThread, {
         embeds: [embed],
       });
@@ -224,6 +272,11 @@ export async function POST(request: Request) {
       if (updateError) {
         console.error("[HackReview] Failed to persist inbound email metadata:", updateError);
       }
+    } else if (contactToken && process.env.DISCORD_WEBHOOK_ADMIN_REPORTS_URL) {
+      await sendDiscordMessageEmbed(
+        process.env.DISCORD_WEBHOOK_ADMIN_REPORTS_URL,
+        [embed],
+      );
     } else if (process.env.DISCORD_WEBHOOK_ADMIN_HACKS_URL) {
       await sendDiscordMessageEmbed(
         process.env.DISCORD_WEBHOOK_ADMIN_HACKS_URL,

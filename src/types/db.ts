@@ -34,6 +34,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      contact_threads: {
+        Row: {
+          context_url: string | null
+          created_at: string
+          discord_parent_channel_id: string | null
+          discord_thread_id: string | null
+          email: string
+          message: string
+          name: string | null
+          reply_token: string
+          resend_last_email_id: string | null
+          resend_last_message_id: string | null
+          ticket_id: string
+          topic: string
+          user_id: string | null
+        }
+        Insert: {
+          context_url?: string | null
+          created_at?: string
+          discord_parent_channel_id?: string | null
+          discord_thread_id?: string | null
+          email: string
+          message: string
+          name?: string | null
+          reply_token: string
+          resend_last_email_id?: string | null
+          resend_last_message_id?: string | null
+          ticket_id: string
+          topic: string
+          user_id?: string | null
+        }
+        Update: {
+          context_url?: string | null
+          created_at?: string
+          discord_parent_channel_id?: string | null
+          discord_thread_id?: string | null
+          email?: string
+          message?: string
+          name?: string | null
+          reply_token?: string
+          resend_last_email_id?: string | null
+          resend_last_message_id?: string | null
+          ticket_id?: string
+          topic?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       hack_covers: {
         Row: {
           alt: string | null

@@ -10,6 +10,12 @@ import {
   verifyDiscordRequest,
 } from "@/utils/discord-rest";
 import {
+  emailContactSubmitter,
+  getContactThreadByDiscordThreadId,
+  postContactThreadMessage,
+  recoverContactDiscordThread,
+} from "@/utils/contact-threads";
+import {
   emailHackCreator,
   postHackReviewMessage,
 } from "@/utils/hack-review";
@@ -123,23 +129,30 @@ async function loadReplyModalContext(channelId: string): Promise<{
     .eq("discord_thread_id", channelId)
     .maybeSingle();
   if (error) throw error;
-  if (!row) return null;
+  if (row) {
+    const { data: profile, error: profileError } = await serviceClient
+      .from("profiles")
+      .select("username")
+      .eq("id", row.hacks.created_by)
+      .maybeSingle();
+    if (profileError) {
+      console.warn(
+        "[HackReview] Failed to load the hack creator profile:",
+        profileError,
+      );
+    }
 
-  const { data: profile, error: profileError } = await serviceClient
-    .from("profiles")
-    .select("username")
-    .eq("id", row.hacks.created_by)
-    .maybeSingle();
-  if (profileError) {
-    console.warn(
-      "[HackReview] Failed to load the hack creator profile:",
-      profileError,
-    );
+    return {
+      title: row.hacks.title,
+      author: profile?.username ?? "the hack creator",
+    };
   }
 
+  const contact = await getContactThreadByDiscordThreadId(channelId);
+  if (!contact) return null;
   return {
-    title: row.hacks.title,
-    author: profile?.username ?? "the hack creator",
+    title: `Ticket ${contact.ticket_id}`,
+    author: contact.name || contact.email,
   };
 }
 
@@ -221,17 +234,21 @@ function deferReplyAndEmail(interaction: DiscordInteraction, message: string): R
         .maybeSingle();
       if (error) throw error;
 
-      const discordThread = reviewThread
+      const contactThread = reviewThread
+        ? null
+        : await getContactThreadByDiscordThreadId(interaction.channel_id!);
+      const mappedThread = reviewThread ?? contactThread;
+      const discordThread = mappedThread
         ? await getDiscordThread(interaction.channel_id!)
         : null;
       if (
-        !reviewThread
+        !mappedThread
         || !discordThread
-        || discordThread.parent_id !== reviewThread.discord_parent_channel_id
+        || discordThread.parent_id !== mappedThread.discord_parent_channel_id
       ) {
         await editDeferredResponse(
           interaction,
-          "This command can only be used in a mapped Hackdex review thread.",
+          "This command can only be used in a mapped Hackdex thread.",
         );
         return;
       }
@@ -241,39 +258,68 @@ function deferReplyAndEmail(interaction: DiscordInteraction, message: string): R
       const avatarUrl = discordUser?.id && discordUser.avatar
         ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
         : undefined;
-      const emailResult = await emailHackCreator({
-        hackSlug: reviewThread.hack_slug,
-        message,
-        adminName,
-      });
-      if (!emailResult.ok) {
-        await editDeferredResponse(interaction, emailResult.error);
-        return;
-      }
-      emailSentConfirmation = `emailed ${emailResult.email} as ${adminName}`;
 
-      const threadPostResult = await postHackReviewMessage(reviewThread, {
-        embeds: [{
-          title: emailResult.subject,
-          author: {
-            name: adminName,
-            ...(avatarUrl ? { icon_url: avatarUrl } : {}),
-          },
-          description: message,
-          footer: {
-            text: emailResult.creatorUsername
-              ? `Sent to the email of ${emailResult.creatorUsername}`
-              : "Sent to the email of the hack creator",
-          },
-          color: 0x57f287,
-        }],
-      });
-      threadPostSucceeded = threadPostResult === "posted";
+      if (reviewThread) {
+        const emailResult = await emailHackCreator({
+          hackSlug: reviewThread.hack_slug,
+          message,
+          adminName,
+        });
+        if (!emailResult.ok) {
+          await editDeferredResponse(interaction, emailResult.error);
+          return;
+        }
+        emailSentConfirmation = `emailed ${emailResult.email} as ${adminName}`;
+
+        const threadPostResult = await postHackReviewMessage(reviewThread, {
+          embeds: [{
+            title: emailResult.subject,
+            author: {
+              name: adminName,
+              ...(avatarUrl ? { icon_url: avatarUrl } : {}),
+            },
+            description: message,
+            footer: {
+              text: emailResult.creatorUsername
+                ? `Sent to the email of ${emailResult.creatorUsername}`
+                : "Sent to the email of the hack creator",
+            },
+            color: 0x57f287,
+          }],
+        });
+        threadPostSucceeded = threadPostResult === "posted";
+      } else if (contactThread) {
+        const emailResult = await emailContactSubmitter({
+          ticketId: contactThread.ticket_id,
+          message,
+          adminName,
+        });
+        if (!emailResult.ok) {
+          await editDeferredResponse(interaction, emailResult.error);
+          return;
+        }
+        emailSentConfirmation = `emailed ${emailResult.email} as ${adminName}`;
+
+        const threadPostResult = await postContactThreadMessage(contactThread, {
+          embeds: [{
+            title: emailResult.subject,
+            author: {
+              name: adminName,
+              ...(avatarUrl ? { icon_url: avatarUrl } : {}),
+            },
+            description: message,
+            footer: { text: `Sent to ${contactThread.email}` },
+            color: 0x57f287,
+          }],
+        });
+        threadPostSucceeded = threadPostResult === "posted";
+      }
+
       await editDeferredResponse(
         interaction,
         threadPostSucceeded
-          ? emailSentConfirmation
-          : `${emailSentConfirmation}. The review thread message could not be posted.`,
+          ? emailSentConfirmation!
+          : `${emailSentConfirmation}. The thread message could not be posted.`,
       );
     } catch (error) {
       console.error("[HackReview] Failed to handle /reply:", error);
@@ -283,8 +329,8 @@ function deferReplyAndEmail(interaction: DiscordInteraction, message: string): R
           emailSentConfirmation
             ? threadPostSucceeded
               ? emailSentConfirmation
-              : `${emailSentConfirmation}. The review thread message could not be posted.`
-            : "The review email could not be sent.",
+              : `${emailSentConfirmation}. The thread message could not be posted.`
+            : "The email could not be sent.",
         );
       } catch (responseError) {
         console.error("[HackReview] Failed to update the deferred interaction:", responseError);
@@ -328,12 +374,12 @@ export async function POST(request: Request) {
     const accessError = replyAccessError(interaction);
     if (accessError) return ephemeral(accessError);
     if (!interaction.channel_id) {
-      return ephemeral("This command can only be used in a mapped Hackdex review thread.");
+      return ephemeral("This command can only be used in a mapped Hackdex thread.");
     }
     try {
       const context = await loadReplyModalContext(interaction.channel_id);
       if (!context) {
-        return ephemeral("This command can only be used in a mapped Hackdex review thread.");
+        return ephemeral("This command can only be used in a mapped Hackdex thread.");
       }
       return replyModal({
         ...context,
@@ -358,6 +404,46 @@ export async function POST(request: Request) {
       return ephemeral("The message must be 1,800 characters or fewer.");
     }
     return deferReplyAndEmail(interaction, message);
+  }
+
+  if (
+    interaction.type === InteractionType.APPLICATION_COMMAND
+    && interaction.data?.name === "recover-ticket"
+    && interaction.data.type === 1
+  ) {
+    const accessError = replyAccessError(interaction);
+    if (accessError) return ephemeral(accessError);
+    const ticketId = interaction.data.options?.find((option) => option.name === "id")?.value?.trim();
+    if (!ticketId) return ephemeral("A ticket ID is required.");
+
+    after(async () => {
+      try {
+        const result = await recoverContactDiscordThread(ticketId);
+        if (!result.ok) {
+          await editDeferredResponse(interaction, result.error);
+          return;
+        }
+        const link = process.env.DISCORD_GUILD_ID
+          ? `https://discord.com/channels/${process.env.DISCORD_GUILD_ID}/${result.threadId}`
+          : result.threadId;
+        await editDeferredResponse(
+          interaction,
+          result.created ? `Created thread: ${link}` : `Thread already exists: ${link}`,
+        );
+      } catch (error) {
+        console.error("[Contact] Failed to handle /recover-ticket:", error);
+        try {
+          await editDeferredResponse(interaction, "The Discord thread could not be created.");
+        } catch (responseError) {
+          console.error("[Contact] Failed to update the deferred interaction:", responseError);
+        }
+      }
+    });
+
+    return Response.json({
+      type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
+      data: { flags: InteractionResponseFlags.EPHEMERAL },
+    });
   }
 
   return ephemeral("Unsupported command.");

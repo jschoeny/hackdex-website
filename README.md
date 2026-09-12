@@ -82,6 +82,8 @@ DISCORD_PUBLIC_KEY=
 DISCORD_GUILD_ID=
 DISCORD_BOT_TOKEN=
 DISCORD_REVIEW_FORUM_CHANNEL_ID=
+DISCORD_CONTACT_FORUM_CHANNEL_ID=
+DISCORD_CONTACT_FORUM_TAG_IDS= # general:id,bug:id,account:id,creator:id,security:id,other:id
 DISCORD_REPLY_ROLE_IDS=
 DISCORD_FORUM_TAG_PENDING_ID=
 DISCORD_FORUM_TAG_APPROVED_ID=
@@ -92,6 +94,7 @@ RESEND_API_KEY=
 RESEND_WEBHOOK_SECRET=
 RESEND_INBOUND_DOMAIN=
 RESEND_FROM=
+RESEND_CONTACT_FROM= # optional; defaults to contact@{RESEND_INBOUND_DOMAIN}
 ```
 
 Register Discord guild commands locally with `npm run discord:register`; in production, an admin can visit `/api/discord/register`.
