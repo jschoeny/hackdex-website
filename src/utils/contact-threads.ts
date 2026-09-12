@@ -186,6 +186,15 @@ async function saveDiscordIds(
   if (error) throw error;
 }
 
+export async function deliverInboundContactMessage(
+  thread: ContactThread,
+  message: { content?: string; embeds?: APIEmbed[] },
+): Promise<"posted" | "failed"> {
+  const ready = await ensureContactDiscordThread(thread, payloadFromRow(thread));
+  const posted = await postContactThreadMessage(ready, message);
+  return posted === "posted" ? "posted" : "failed";
+}
+
 export async function postContactThreadMessage(
   thread: ContactThread,
   message: { content?: string; embeds?: APIEmbed[] },

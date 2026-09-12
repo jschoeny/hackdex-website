@@ -2,9 +2,9 @@ import type { APIEmbed } from "discord-api-types/v10";
 import { Resend, type EmailReceivedEvent } from "resend";
 
 import {
+  deliverInboundContactMessage,
   getContactThreadByMessageIds,
   getContactThreadByReplyToken,
-  postContactThreadMessage,
 } from "@/utils/contact-threads";
 import { sendDiscordMessageEmbed } from "@/utils/discord";
 import { postHackReviewMessage } from "@/utils/hack-review";
@@ -231,19 +231,17 @@ export async function POST(request: Request) {
     };
 
     if (contactThread) {
-      const postResult = await postContactThreadMessage(contactThread, {
+      const postResult = await deliverInboundContactMessage(contactThread, {
         embeds: [embed],
       });
-      if (postResult === "failed") {
-        throw new Error("Inbound email could not be posted to Discord");
-      }
-      if (postResult === "no-thread") {
+      if (postResult !== "posted") {
         if (process.env.DISCORD_WEBHOOK_ADMIN_REPORTS_URL) {
           await sendDiscordMessageEmbed(
             process.env.DISCORD_WEBHOOK_ADMIN_REPORTS_URL,
             [embed],
           );
         }
+        throw new Error("Inbound contact email could not be posted to Discord");
       }
       const { error: updateError } = await serviceClient
         .from("contact_threads")
