@@ -96,6 +96,7 @@ export default function ContactForm({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Your name"
+            maxLength={100}
             className="h-11 rounded-md bg-[var(--surface-2)] px-3 text-sm ring-1 ring-inset ring-[var(--border)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
             autoComplete="name"
           />
@@ -109,6 +110,7 @@ export default function ContactForm({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
+            maxLength={254}
             className={`h-11 rounded-md bg-[var(--surface-2)] px-3 text-sm ring-1 ring-inset focus:outline-none focus:ring-2 focus:ring-[var(--ring)] ${
               email && emailError ? "ring-red-600/40 bg-red-500/10 dark:ring-red-400/40 dark:bg-red-950/20" : "ring-[var(--border)]"
             }`}
@@ -131,6 +133,7 @@ export default function ContactForm({
             value={contextUrl}
             onChange={(e) => setContextUrl(e.target.value)}
             placeholder="https://hackdex.app/..."
+            maxLength={1024}
             className="h-11 rounded-md bg-[var(--surface-2)] px-3 text-sm ring-1 ring-inset ring-[var(--border)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
             inputMode="url"
           />
@@ -152,6 +155,7 @@ export default function ContactForm({
               ? "Please provide enough detail to help us triage. Avoid sharing sensitive data."
               : "How can we help?"
           }
+          maxLength={4000}
           className="min-h-[8rem] rounded-md bg-[var(--surface-2)] px-3 py-2 text-sm ring-1 ring-inset ring-[var(--border)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
           required
         />

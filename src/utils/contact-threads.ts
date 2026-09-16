@@ -37,6 +37,11 @@ function payloadFromRow(row: ContactThread): ContactPayload {
   };
 }
 
+/** Discord rejects embed field values longer than 1024 characters. */
+function embedField(name: string, value: string, inline = true) {
+  return { name, value: value.slice(0, 1024), inline };
+}
+
 export function contactSubmissionEmbed(
   payload: ContactPayload,
   ticketId: string,
@@ -51,13 +56,11 @@ export function contactSubmissionEmbed(
       : payload.message,
     color: payload.topic === "security" ? 0xff0000 : payload.topic === "bug" ? 0xffa500 : 0x3498db,
     fields: [
-      ...(payload.name ? [{ name: "Name", value: payload.name, inline: true }] : []),
-      { name: "Email", value: payload.email, inline: true },
-      ...(opts?.username
-        ? [{ name: "Logged in as", value: `@${opts.username}`, inline: true }]
-        : []),
+      ...(payload.name ? [embedField("Name", payload.name)] : []),
+      embedField("Email", payload.email),
+      ...(opts?.username ? [embedField("Logged in as", `@${opts.username}`)] : []),
       ...(payload.contextUrl
-        ? [{ name: "Related URL", value: payload.contextUrl, inline: false }]
+        ? [embedField("Related URL", payload.contextUrl, false)]
         : []),
     ],
     footer: { text: `Ticket #${ticketId}` },
@@ -68,20 +71,25 @@ export function contactSubmissionEmbed(
 async function notifyContactCreateFailure(ticketId: string, payload: ContactPayload): Promise<void> {
   const webhook = process.env.DISCORD_WEBHOOK_ADMIN_REPORTS_URL;
   if (!webhook) return;
-  await sendDiscordMessageEmbed(webhook, [
-    contactSubmissionEmbed(payload, ticketId),
-  ]);
+  try {
+    await sendDiscordMessageEmbed(webhook, [contactSubmissionEmbed(payload, ticketId)]);
+  } catch (error) {
+    console.error(`[Contact] Failed to report ticket ${ticketId} to the admin webhook:`, error);
+  }
 }
+
+/** Reply tokens are `randomBytes(24).toString("hex")`; anything else cannot match a real row. */
+const REPLY_TOKEN_PATTERN = /^[a-f0-9]{48}$/i;
 
 export async function getContactThreadByReplyToken(
   replyToken: string,
 ): Promise<ContactThread | null> {
+  if (!REPLY_TOKEN_PATTERN.test(replyToken)) return null;
   const serviceClient = await createServiceClient();
-  const escaped = replyToken.replaceAll("_", "\\_");
   const { data, error } = await serviceClient
     .from("contact_threads")
     .select("*")
-    .ilike("reply_token", escaped)
+    .eq("reply_token", replyToken.toLowerCase())
     .maybeSingle();
   if (error) throw error;
   return data;
@@ -94,7 +102,7 @@ export async function getContactThreadByTicketId(
   const { data, error } = await serviceClient
     .from("contact_threads")
     .select("*")
-    .ilike("ticket_id", ticketId.trim())
+    .eq("ticket_id", ticketId.trim().toUpperCase())
     .maybeSingle();
   if (error) throw error;
   return data;
@@ -186,12 +194,31 @@ async function saveDiscordIds(
   if (error) throw error;
 }
 
+/** Resolves the submitter's profile name so recreated threads keep their "Logged in as" field. */
+async function submitterUsername(thread: ContactThread): Promise<string | null> {
+  if (!thread.user_id) return null;
+  const serviceClient = await createServiceClient();
+  const { data, error } = await serviceClient
+    .from("profiles")
+    .select("username")
+    .eq("id", thread.user_id)
+    .maybeSingle();
+  if (error) {
+    console.warn("[Contact] Failed to load the submitter profile:", error);
+    return null;
+  }
+  return data?.username ?? null;
+}
+
 export async function deliverInboundContactMessage(
   thread: ContactThread,
   message: { content?: string; embeds?: APIEmbed[] },
 ): Promise<"posted" | "failed"> {
-  const ready = await ensureContactDiscordThread(thread, payloadFromRow(thread));
-  const posted = await postContactThreadMessage(ready, message);
+  const payload = payloadFromRow(thread);
+  const username = await submitterUsername(thread);
+  // The inbound webhook returns 500 on failure so Resend retries; skip the admin report per attempt.
+  const ready = await ensureContactDiscordThread(thread, payload, username, { reportFailure: false });
+  const posted = await postContactThreadMessage(ready.thread, message);
   return posted === "posted" ? "posted" : "failed";
 }
 
@@ -212,35 +239,66 @@ export async function postContactThreadMessage(
   }
 }
 
+/**
+ * Makes sure the ticket has a live Discord thread, creating one when it is missing.
+ * Discord problems never throw: they are logged, reported to the admin webhook, and the
+ * row comes back unchanged so the caller can still confirm the ticket by email.
+ * `reused` is true when an existing thread was found, meaning the caller should sync edits onto it.
+ * Pass `reportFailure: false` from paths that retry on failure so the admin webhook is not spammed.
+ */
 export async function ensureContactDiscordThread(
   thread: ContactThread,
   payload: ContactPayload,
   username?: string | null,
-): Promise<ContactThread> {
-  if (thread.discord_thread_id) {
-    const existing = await getDiscordThread(thread.discord_thread_id);
-    if (existing) return thread;
+  opts?: { reportFailure?: boolean },
+): Promise<{ thread: ContactThread; reused: boolean }> {
+  try {
+    if (thread.discord_thread_id && await getDiscordThread(thread.discord_thread_id)) {
+      return { thread, reused: true };
+    }
+
+    const created = await createDiscordContactThread({
+      name: contactThreadTitle(payload, thread.ticket_id),
+      topic: payload.topic,
+      embeds: [contactSubmissionEmbed(payload, thread.ticket_id, { username })],
+    });
+    if (created) {
+      const parentId = created.parent_id ?? process.env.DISCORD_CONTACT_FORUM_CHANNEL_ID ?? "";
+      await saveDiscordIds(thread.ticket_id, created.id, parentId);
+      return {
+        thread: {
+          ...thread,
+          discord_thread_id: created.id,
+          discord_parent_channel_id: parentId,
+        },
+        reused: false,
+      };
+    }
+  } catch (error) {
+    console.error(
+      `[Contact] Failed to set up the Discord thread for ticket ${thread.ticket_id}:`,
+      error,
+    );
   }
 
-  const created = await createDiscordContactThread({
-    name: contactThreadTitle(payload, thread.ticket_id),
-    topic: payload.topic,
-    embeds: [contactSubmissionEmbed(payload, thread.ticket_id, { username })],
-  });
-  if (!created) {
+  if (opts?.reportFailure !== false) {
     await notifyContactCreateFailure(thread.ticket_id, payload);
-    return thread;
   }
-
-  const parentId = created.parent_id ?? process.env.DISCORD_CONTACT_FORUM_CHANNEL_ID ?? "";
-  await saveDiscordIds(thread.ticket_id, created.id, parentId);
-  return {
-    ...thread,
-    discord_thread_id: created.id,
-    discord_parent_channel_id: parentId,
-  };
+  return { thread, reused: false };
 }
 
+/** Every tag id the contact forum uses for a topic, so a topic swap only clears its own tag. */
+function contactTopicTagIds(): string[] {
+  return Object.keys(contactTopicLabels)
+    .map((topic) => contactForumTagId(topic))
+    .filter((id): id is string => Boolean(id));
+}
+
+/**
+ * Mirrors an edited submission onto its existing thread: rename, swap the topic tag while keeping
+ * tags admins added by hand, and post the updated embed. Renames are rate limited to two per ten
+ * minutes, so a failed update is logged and the embed still goes out.
+ */
 async function syncExistingDiscordThread(
   thread: ContactThread,
   payload: ContactPayload,
@@ -249,11 +307,27 @@ async function syncExistingDiscordThread(
 ): Promise<void> {
   if (!thread.discord_thread_id || contactPayloadEquals(previous, payload)) return;
 
-  const topicTagId = contactForumTagId(payload.topic);
-  await updateDiscordThread(thread.discord_thread_id, {
-    name: contactThreadTitle(payload, thread.ticket_id),
-    ...(topicTagId ? { applied_tags: [topicTagId] } : {}),
-  });
+  try {
+    const topicTagId = contactForumTagId(payload.topic);
+    let appliedTags: string[] | undefined;
+    if (topicTagId) {
+      const existing = await getDiscordThread(thread.discord_thread_id);
+      const tags = new Set(existing?.applied_tags ?? []);
+      for (const id of contactTopicTagIds()) tags.delete(id);
+      tags.add(topicTagId);
+      appliedTags = Array.from(tags);
+    }
+    await updateDiscordThread(thread.discord_thread_id, {
+      name: contactThreadTitle(payload, thread.ticket_id),
+      ...(appliedTags ? { applied_tags: appliedTags } : {}),
+    });
+  } catch (error) {
+    console.error(
+      `[Contact] Failed to update Discord thread ${thread.discord_thread_id}:`,
+      error,
+    );
+  }
+
   await postContactThreadMessage(thread, {
     embeds: [contactSubmissionEmbed(payload, thread.ticket_id, { username, updated: true })],
   });
@@ -397,12 +471,9 @@ export async function submitContactTicket(args: {
     }
     thread ??= await insertContactThread({ payload: args.payload, userId: args.userId });
 
-    const hadThread = Boolean(
-      thread.discord_thread_id && await getDiscordThread(thread.discord_thread_id),
-    );
-
-    thread = await ensureContactDiscordThread(thread, args.payload, args.username);
-    if (hadThread) {
+    const ensured = await ensureContactDiscordThread(thread, args.payload, args.username);
+    thread = ensured.thread;
+    if (ensured.reused) {
       await syncExistingDiscordThread(thread, args.payload, previous, args.username);
     }
 
@@ -436,9 +507,13 @@ export async function recoverContactDiscordThread(
     }
   }
 
-  const payload = payloadFromRow(thread);
-  const updated = await ensureContactDiscordThread(thread, payload);
-  if (!updated.discord_thread_id) {
+  const username = await submitterUsername(thread);
+  const { thread: updated } = await ensureContactDiscordThread(
+    thread,
+    payloadFromRow(thread),
+    username,
+  );
+  if (!updated.discord_thread_id || updated.discord_thread_id === thread.discord_thread_id) {
     return { ok: false, error: "Failed to create the Discord thread." };
   }
   return { ok: true, threadId: updated.discord_thread_id, created: true };

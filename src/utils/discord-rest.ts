@@ -168,10 +168,6 @@ export async function postDiscordThreadMessage(
   threadId: string,
   message: { content?: string; embeds?: APIEmbed[] },
 ): Promise<boolean> {
-  await discordRequest(`/channels/${threadId}`, {
-    method: "PATCH",
-    body: JSON.stringify({ archived: false }),
-  });
   const result = await discordRequest<{ id: string }>(`/channels/${threadId}/messages`, {
     method: "POST",
     body: JSON.stringify(message),

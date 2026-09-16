@@ -62,6 +62,25 @@ function replyTokenFromAddresses(
   return null;
 }
 
+const CONTACT_LOCAL_PART = /^contact(?:\+[^@]*)?$/i;
+
+/**
+ * True when the mail was addressed to the contact inbox: `contact@inboundDomain`,
+ * `contact+token@inboundDomain`, or the configured `RESEND_CONTACT_FROM` address.
+ */
+function isContactAddress(addresses: string[], inboundDomain: string): boolean {
+  const contactFrom = process.env.RESEND_CONTACT_FROM
+    ? normalizeEmailAddress(process.env.RESEND_CONTACT_FROM)
+    : null;
+  const domain = inboundDomain.toLowerCase();
+  return addresses.some((address) => {
+    const normalized = normalizeEmailAddress(address);
+    if (contactFrom && normalized === contactFrom) return true;
+    const [localPart, addressDomain] = normalized.split("@");
+    return addressDomain === domain && CONTACT_LOCAL_PART.test(localPart);
+  });
+}
+
 export async function POST(request: Request) {
   const apiKey = process.env.RESEND_API_KEY;
   const webhookSecret = process.env.RESEND_WEBHOOK_SECRET;
@@ -252,12 +271,8 @@ export async function POST(request: Request) {
         embeds: [contactEmbed],
       });
       if (postResult !== "posted") {
-        if (process.env.DISCORD_WEBHOOK_ADMIN_REPORTS_URL) {
-          await sendDiscordMessageEmbed(
-            process.env.DISCORD_WEBHOOK_ADMIN_REPORTS_URL,
-            [contactEmbed],
-          );
-        }
+        // Leave the failure to the 500 below so Resend retries until the thread post lands;
+        // posting a fallback embed here would repeat on every retry.
         deliveryFailed = true;
       } else {
         delivered = true;
@@ -310,7 +325,8 @@ export async function POST(request: Request) {
     }
 
     if (!delivered) {
-      if (contactToken && process.env.DISCORD_WEBHOOK_ADMIN_REPORTS_URL) {
+      const toContactInbox = isContactAddress(addresses, inboundDomain);
+      if (toContactInbox && process.env.DISCORD_WEBHOOK_ADMIN_REPORTS_URL) {
         await sendDiscordMessageEmbed(
           process.env.DISCORD_WEBHOOK_ADMIN_REPORTS_URL,
           [embed],

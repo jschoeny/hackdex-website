@@ -97,7 +97,9 @@ RESEND_FROM=
 RESEND_CONTACT_FROM= # optional; defaults to contact@{RESEND_INBOUND_DOMAIN}
 ```
 
-Register Discord guild commands locally with `npm run discord:register`; in production, an admin can visit `/api/discord/register`.
+Verify `RESEND_INBOUND_DOMAIN` for sending in Resend too, since both the review and contact From addresses default to it.
+
+Register Discord guild commands locally with `npm run discord:register`; in production, an admin can visit `/api/discord/register`. Re-register whenever `src/utils/discord-commands.mjs` changes.
 
 ### Supabase (local)
 

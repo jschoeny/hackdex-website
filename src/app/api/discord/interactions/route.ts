@@ -94,7 +94,7 @@ function replyModal(context?: {
       custom_id: REPLY_MODAL_ID,
       title: context
         ? discordText(context.title, DISCORD_MODAL_TITLE_MAX)
-        : "Email the submitter",
+        : "Send an email reply",
       components: [
         {
           type: 18,
@@ -103,14 +103,14 @@ function replyModal(context?: {
             : "Message",
           description: context
             ? discordText(`This will be sent as ${context.adminName}.`, DISCORD_MODAL_DESCRIPTION_MAX)
-            : "This is emailed to the hack creator.",
+            : "This is emailed to the person this thread is about.",
           component: {
             type: 4,
             custom_id: REPLY_MESSAGE_ID,
             style: 2,
             required: true,
             max_length: REPLY_MESSAGE_MAX_LENGTH,
-            placeholder: "Write the review reply…",
+            placeholder: "Write your reply…",
           },
         },
       ],
